@@ -87,7 +87,7 @@ sh scripts/pretrain_dukemtmc.sh
 ```
 
 
-### Stage II: End-to-end training with MLT
+### Stage II: End-to-end training with clustering
 
 Utilizeing DBSCAN clustering algorithm
 
