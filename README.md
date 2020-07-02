@@ -23,7 +23,7 @@ repository will be released upon the paper published.
 | [UDA_TP](https://github.com/open-mmlab/OpenUnReID/) | ResNet50 | DukeMTMC | 52.3 | 76.0 | 87.8 | 91.9 | ~2h | 
 | [MMT](https://github.com/open-mmlab/OpenUnReID/) | ResNet50 | DukeMTMC | 80.9 | 92.2 | 97.6 | 98.4 | ~6h |
 | [SpCL](https://github.com/open-mmlab/OpenUnReID/) | ResNet50 | DukeMTMC | 78.2 | 90.5 | 96.6 | 97.8 | ~3h |
-| [strong_baseline](https://github.com/open-mmlab/OpenUnReID/) | DukeMTMC | ImageNet | 75.6 | 90.9 | 96.6 | 97.8 | ~3h | 
+| [strong_baseline](https://github.com/open-mmlab/OpenUnReID/) | ResNet50 | ResNet50 | 75.6 | 90.9 | 96.6 | 97.8 | ~3h | 
 | [Our stronger_baseline](https://github.com/JDAI-CV/fast-reid) | ResNet50 | DukeMTMC | 78.0 | 91.0 | 96.4 | 97.7 | ~3h |
 | [MLT](https://github.com/JDAI-CV/fast-reid) | ResNet50 | DukeMTMC | 81.5| 92.8| 96.8| 97.9 | ~ |
 
