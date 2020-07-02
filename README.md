@@ -33,7 +33,7 @@ repository will be released upon the paper published.
 | ----- | :------: | :---------: | :----: | :------: | :------: | :-------: | :------: | 
 | Direct infer | ResNet50 | Market | 34.1 | 51.3 | 65.3 | 71.7 | ~1h | 
 | [UDA_TP](https://github.com/open-mmlab/OpenUnReID/) PR'2020| ResNet50 | Market | 45.7 | 65.5 | 78.0 | 81.7 | ~2h |
-| [MMT](https://github.com/open-mmlab/OpenUnReID/) ICLR'20| ResNet50 | Market | 67.7 | 80.3 | 89.9 | 92.9 | ~6h |
+| [MMT](https://github.com/open-mmlab/OpenUnReID/) ICLR'2020| ResNet50 | Market | 67.7 | 80.3 | 89.9 | 92.9 | ~6h |
 | [SpCL](https://github.com/open-mmlab/OpenUnReID/) NIPS'2020 submission | ResNet50 | Market | 70.4 | 83.8 | 91.2 | 93.4 | ~3h |
 | [strong_baseline](https://github.com/open-mmlab/OpenUnReID/) | ResNet50 | Market | 60.4 | 75.9 | 86.2 | 89.8 | ~3h |
 | [Our stronger_baseline](https://github.com/JDAI-CV/fast-reid) | ResNet50 | Market | 66.7 | 80.0 | 89.2 | 92.2  | ~3h |
