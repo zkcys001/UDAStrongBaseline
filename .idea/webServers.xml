@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<project version="4">
+  <component name="WebServers">
+    <option name="servers">
+      <webServer id="e987040d-117b-4d85-876d-8df7106d0085" name="1230" url="http://localhost">
+        <fileTransfer host="localhost" port="1230" accessType="SFTP">
+          <advancedOptions>
+            <advancedOptions dataProtectionLevel="Private" shareSSLContext="true" />
+          </advancedOptions>
+          <option name="port" value="1230" />
+        </fileTransfer>
+      </webServer>
+    </option>
+  </component>
+</project>
