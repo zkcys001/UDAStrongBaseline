@@ -25,7 +25,7 @@ repository will be released upon the paper published.
 | [SpCL](https://github.com/open-mmlab/OpenUnReID/) | ResNet50 | DukeMTMC | 78.2 | 90.5 | 96.6 | 97.8 | ~3h |
 | [strong_baseline](https://github.com/open-mmlab/OpenUnReID/) | ResNet50 | DukeMTMC | 75.6 | 90.9 | 96.6 | 97.8 | ~3h | 
 | [Our stronger_baseline](https://github.com/JDAI-CV/fast-reid) | ResNet50 | DukeMTMC | 78.0 | 91.0 | 96.4 | 97.7 | ~3h |
-| [MLT](https://github.com/JDAI-CV/fast-reid) | ResNet50 | DukeMTMC | 81.5| 92.8| 96.8| 97.9 | ~ |
+| [MLT] | ResNet50 | DukeMTMC | 81.5| 92.8| 96.8| 97.9 | ~ |
 
 #### Market-1501 -> DukeMTMC-reID
 
@@ -37,7 +37,7 @@ repository will be released upon the paper published.
 | [SpCL](https://github.com/open-mmlab/OpenUnReID/) | ResNet50 | Market | 70.4 | 83.8 | 91.2 | 93.4 | ~3h |
 | [strong_baseline](https://github.com/open-mmlab/OpenUnReID/) | ResNet50 | Market | 60.4 | 75.9 | 86.2 | 89.8 | ~3h |
 | [Our stronger_baseline](https://github.com/JDAI-CV/fast-reid) | ResNet50 | Market | 66.7 | 80.0 | 89.2 | 92.2  | ~3h |
-| [MLT](https://github.com/JDAI-CV/fast-reid) | ResNet50 | Market | 71.2 |83.9| 91.5| 93.2| ~ |
+| [MLT] | ResNet50 | Market | 71.2 |83.9| 91.5| 93.2| ~ |
 
 ## Acknowledgement
 
