@@ -39,6 +39,67 @@ repository will be released upon the paper published.
 | [Our stronger_baseline](https://github.com/JDAI-CV/fast-reid) | ResNet50 | Market | 66.7 | 80.0 | 89.2 | 92.2  | ~3h |
 | [MLT] | ResNet50 | Market | 71.2 |83.9| 91.5| 93.2| ~ |
 
+## Requirements
+
+### Installation
+
+```shell
+git clone https://github.com/MLT-reid/MLT
+cd MLT
+
+```
+
+### Prepare Datasets
+
+```shell
+cd examples && mkdir data
+```
+Download the person datasets [DukeMTMC-reID](https://arxiv.org/abs/1609.01775), [Market-1501](https://drive.google.com/file/d/0B8-rUzbwVRk0c054eEozWG9COHM/view), [MSMT17](https://arxiv.org/abs/1711.08565), Then unzip them under the directory like
+```
+./data
+├── dukemtmc
+│   └── DukeMTMC-reID
+├── market1501
+│   └── Market-1501-v15.09.15
+├── msmt17
+    └── MSMT17_V1
+
+```
+
+You can create the soft link to the dataset:
+```shell
+ln -s /path-to-data ./data
+```
+
+ImageNet-pretrained models for **ResNet-50** will be automatically downloaded in the python script.
+
+
+## Training
+
+We utilize 4 GPUs for training. **Note that**
+
+
+### Stage I: Pretrain Model on Source Domain
+To train the model(s) in the source domain, run this command:
+```shell
+sh scripts/pretrain_market1501.sh
+sh scripts/pretrain_dukemtmc.sh
+```
+
+
+### Stage II: End-to-end training with MLT
+
+Utilizeing DBSCAN clustering algorithm
+
+```shell
+sh scripts/dbscan_baseline_market2duke.sh
+sh scripts/dbscan_baseline_duke2market.sh
+```
+
+
+
+
+
 ## Acknowledgement
 
 Some parts of `UDAstrongbaseline` are from [MMT](https://github.com/yxgeee/MMT) 
