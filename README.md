@@ -41,6 +41,6 @@ repository will be released upon the paper published.
 
 ## Acknowledgement
 
-Some parts of `UDAstrongbaseline` are from [MMT)](https://github.com/yxgeee/MMT) 
+Some parts of `UDAstrongbaseline` are from [MMT](https://github.com/yxgeee/MMT) 
 and [fastreid](https://github.com/JDAI-CV/fast-reid). We would like to thank for these projects, 
 and we will update our method .
