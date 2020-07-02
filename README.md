@@ -2,8 +2,8 @@
 
 
 UDAStrongBaseline is a transitional code based pyTorch framework for both unsupervised learning (USL) 
-and unsupervised domain adaptation (UDA) in the context of object re-ID tasks. It provides strong 
-baselines. It needs the enviorment: Python >=3.6 and PyTorch >=1.1.
+and unsupervised domain adaptation (UDA) in the context of object re-ID tasks. It provides stronger 
+baselines on these tasks. It needs the enviorment: Python >=3.6 and PyTorch >=1.1. We will transfer aoo the codes to the [fastreid](https://github.com/JDAI-CV/fast-reid) in the future (ongoing).
 
 
 ### Unsupervised domain adaptation (UDA) on Person re-ID
