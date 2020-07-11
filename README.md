@@ -1,5 +1,6 @@
 ## Introduction
 
+*Our method only adopts the clustering algorithm and ReID baseline model with the moving average model.
 
 UDAStrongBaseline is a transitional code based pyTorch framework for both unsupervised learning (USL) 
 and unsupervised domain adaptation (UDA) in the context of object re-ID tasks. It provides stronger 
