@@ -53,7 +53,6 @@ cd UDAStrongBaseline
 ### Prepare Datasets
 
 ```shell
-cd examples && mkdir data
 ```
 Download the person datasets [DukeMTMC-reID](https://arxiv.org/abs/1609.01775), [Market-1501](https://drive.google.com/file/d/0B8-rUzbwVRk0c054eEozWG9COHM/view), [MSMT17](https://arxiv.org/abs/1711.08565), Then unzip them under the directory like
 ```
