@@ -6,7 +6,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 from .evaluation_metrics import accuracy
-from .loss import TripletLoss, CrossEntropyLabelSmooth, SoftTripletLoss, SoftEntropy, CrossBatchMemory
+from .loss import TripletLoss, CrossEntropyLabelSmooth, SoftTripletLoss, SoftEntropy
 from .MemoryBank.NCECriterion import MultiSoftmaxLoss
 from .utils.meters import AverageMeter
 

@@ -1,17 +1,17 @@
 from __future__ import absolute_import
 
-from .resnet import *
-from .resnet_ibn import *
+# from .resnet import *
+# from .resnet_ibn import *
 from .resnet_sbs import resnet50ibn_sbs,resnet50_sbs,resnet50_base
 
 __factory = {
-    'resnet18': resnet18,
-    'resnet34': resnet34,
-    'resnet50': resnet50,
-    'resnet101': resnet101,
-    'resnet152': resnet152,
-    'resnet_ibn50a': resnet_ibn50a,
-    'resnet_ibn101a': resnet_ibn101a,
+    # 'resnet18': resnet18,
+    # 'resnet34': resnet34,
+    # 'resnet50': resnet50,
+    # 'resnet101': resnet101,
+    # 'resnet152': resnet152,
+    # 'resnet_ibn50a': resnet_ibn50a,
+    # 'resnet_ibn101a': resnet_ibn101a,
     'resnet50ibn_sbs': resnet50ibn_sbs,
     'resnet50_sbs':resnet50_sbs,
     'resnet50_base':resnet50_base

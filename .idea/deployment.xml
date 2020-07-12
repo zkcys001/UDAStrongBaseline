@@ -1,14 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <project version="4">
-  <component name="PublishConfigData" serverName="25" overwriteAll="false" preserveTimestamps="false">
+  <component name="PublishConfigData" autoUpload="Always" serverName="FAREAST.v-zhengk@GCRAZGDL707.redmond.corp.microsoft.com:22" overwriteAll="false" preserveTimestamps="false">
     <serverData>
-      <paths name="1229">
-        <serverdata>
-          <mappings>
-            <mapping deploy="/home/helingxiao3/zkc/moco_reid_mb" local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
       <paths name="1230">
         <serverdata>
           <mappings>
@@ -16,56 +9,14 @@
           </mappings>
         </serverdata>
       </paths>
-      <paths name="215">
+      <paths name="FAREAST.v-zhengk@GCRAZGDL707.redmond.corp.microsoft.com:22">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/liuwu1/zkc/moco_reid_mb" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/home/v-zhengk/code/UDAStrongBaseline" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>
-      <paths name="23">
-        <serverdata>
-          <mappings>
-            <mapping deploy="/export/home/zkc/moco_reid_mb" local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="25">
-        <serverdata>
-          <mappings>
-            <mapping deploy="/export/home/zkc/moco_reid_mb" local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="root@localhost:23">
-        <serverdata>
-          <mappings>
-            <mapping deploy="/tmp/pycharm_project_406" local="$PROJECT_DIR$" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="root@localhost:23 (1)">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="root@localhost:23 (2)">
-        <serverdata>
-          <mappings>
-            <mapping local="$PROJECT_DIR$" web="/" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="root@localhost:4325">
-        <serverdata>
-          <mappings>
-            <mapping deploy="/export/home/zkc/moco_reid_mb" local="$PROJECT_DIR$" />
-          </mappings>
-        </serverdata>
-      </paths>
-      <paths name="zkc@localhost:1225">
+      <paths name="FAREAST.v-zhengk@GCRAZGDL707.redmond.corp.microsoft.com:22 (1)">
         <serverdata>
           <mappings>
             <mapping local="$PROJECT_DIR$" web="/" />
@@ -73,5 +24,6 @@
         </serverdata>
       </paths>
     </serverData>
+    <option name="myAutoUpload" value="ALWAYS" />
   </component>
 </project>

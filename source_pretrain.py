@@ -181,7 +181,7 @@ if __name__ == '__main__':
     parser.add_argument('-dt', '--dataset-target', type=str, default='dukemtmc',
                         choices=datasets.names())
     parser.add_argument('-b', '--batch-size', type=int, default=64)
-    parser.add_argument('-j', '--workers', type=int, default=0)
+    parser.add_argument('-j', '--workers', type=int, default=16)
     parser.add_argument('--height', type=int, default=256, help="input height")
     parser.add_argument('--width', type=int, default=128, help="input width")
     parser.add_argument('--num-instances', type=int, default=4,
