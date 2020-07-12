@@ -153,7 +153,7 @@ class ResNet(nn.Module):
         # )
         #
         self.memorybank_fc = nn.Linear(2048, 2048)
-        self.mbn = get_norm(bn_norm, 2048)#nn.BatchNorm1d(2048)
+        self.mbn = nn.BatchNorm1d(2048)#get_norm(bn_norm, 2048)#
         init.kaiming_normal_(self.memorybank_fc.weight, mode='fan_out')
         init.constant_(self.memorybank_fc.bias, 0)
 
@@ -163,7 +163,7 @@ class ResNet(nn.Module):
         self.dropout = dropout
         out_planes = 2048#resnet.fc.in_features
         self.num_features = out_planes
-        self.feat_bn = get_norm(bn_norm, self.num_features)#nn.BatchNorm1d(self.num_features)
+        self.feat_bn = nn.BatchNorm1d(self.num_features)#get_norm(bn_norm, self.num_features)#
 
         if self.dropout > 0:
             self.drop = nn.Dropout(self.dropout)
