@@ -100,8 +100,6 @@ sh scripts/dbscan_baseline_duke2market.sh
 
 
 
-
-
 ## Acknowledgement
 
 Some parts of `UDAstrongbaseline` are from [MMT](https://github.com/yxgeee/MMT) 
