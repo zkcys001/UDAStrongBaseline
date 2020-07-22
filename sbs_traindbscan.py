@@ -107,8 +107,8 @@ def create_model(args, ncs):
 
 
     model_1.cuda()
-
     model_1_ema.cuda()
+
     model_1 = nn.DataParallel(model_1)
     model_1_ema = nn.DataParallel(model_1_ema)
 

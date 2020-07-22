@@ -30,7 +30,8 @@ def get_data(name, data_dir, height, width, batch_size, workers, num_instances, 
     root = osp.join(data_dir)
 
     dataset = datasets.create(name, root)
-
+    # normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],
+    #                          std=[0.229, 0.224, 0.225])
 
     train_set = dataset.train
     num_classes = dataset.num_train_pids
@@ -42,12 +43,14 @@ def get_data(name, data_dir, height, width, batch_size, workers, num_instances, 
              T.RandomCrop((height, width)),
              # T.AugMix(),
              T.ToTensor(),
+             # normalizer,
          ])
 
 
     test_transformer = T.Compose([
              T.Resize((height, width), interpolation=3),
-             T.ToTensor()
+             T.ToTensor(),
+             # normalizer,
          ])
 
     rmgs_flag = num_instances > 0
@@ -60,7 +63,7 @@ def get_data(name, data_dir, height, width, batch_size, workers, num_instances, 
                 DataLoader(Preprocessor(train_set, root=dataset.images_dir,
                                         transform=train_transformer),
                             batch_size=batch_size, num_workers=workers, sampler=sampler,
-                            shuffle=not rmgs_flag, pin_memory=True, drop_last=True), length=iters)
+                            shuffle=not rmgs_flag, pin_memory=False, drop_last=True), length=iters)
 
     test_loader = DataLoader(
         Preprocessor(list(set(dataset.query) | set(dataset.gallery)),
@@ -109,8 +112,8 @@ def main_worker(args):
     model = models.create(args.arch, num_features=args.features, dropout=args.dropout,
                           num_classes=[num_classes])
     model.cuda()
-    model = nn.DataParallel(model)
-    patch_replication_callback(model)
+    # model = nn.DataParallel(model)
+    # patch_replication_callback(model)
 
     # Load from checkpoint
     if args.resume:
