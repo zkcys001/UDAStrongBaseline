@@ -2,10 +2,17 @@
 <project version="4">
   <component name="PublishConfigData" autoUpload="Always" serverName="FAREAST.v-zhengk@GCRAZGDL707.redmond.corp.microsoft.com:22">
     <serverData>
+      <paths name="1230">
+        <serverdata>
+          <mappings>
+            <mapping local="$PROJECT_DIR$" web="/" />
+          </mappings>
+        </serverdata>
+      </paths>
       <paths name="FAREAST.v-zhengk@GCRAZGDL707.redmond.corp.microsoft.com:22">
         <serverdata>
           <mappings>
-            <mapping deploy="/home/v-zhengk/code/selflabelonline" local="$PROJECT_DIR$" web="/" />
+            <mapping deploy="/home/v-zhengk/code/UDAStrongBaseline" local="$PROJECT_DIR$" web="/" />
           </mappings>
         </serverdata>
       </paths>

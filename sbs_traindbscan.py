@@ -11,6 +11,7 @@ from sklearn.cluster import DBSCAN
 
 import torch
 from torch import nn
+from torch.nn import Parameter
 from torch.backends import cudnn
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
@@ -27,10 +28,10 @@ from UDAsbs.utils.data import transforms as T
 from UDAsbs.utils.data.sampler import RandomMultipleGallerySampler
 from UDAsbs.utils.data.preprocessor import Preprocessor
 from UDAsbs.utils.logging import Logger
-from UDAsbs.utils.serialization import load_checkpoint, save_checkpoint, copy_state_dict
+from UDAsbs.utils.serialization import load_checkpoint, save_checkpoint#, copy_state_dict
 
 from UDAsbs.utils.faiss_rerank import compute_jaccard_distance
-
+# import ipdb
 
 
 start_epoch = best_mAP = 0
@@ -50,10 +51,11 @@ def get_data(name, data_dir, l=1):
 
     return dataset, label_dict
 
-
+normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
 def get_train_loader(dataset, height, width, choice_c, batch_size, workers,
                      num_instances, iters, trainset=None):
-    normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
+
+
     train_transformer = T.Compose([
         T.Resize((height, width), interpolation=3),
         T.RandomHorizontalFlip(p=0.5),
@@ -82,7 +84,6 @@ def get_train_loader(dataset, height, width, choice_c, batch_size, workers,
 
 
 def get_test_loader(dataset, height, width, batch_size, workers, testset=None):
-    normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
 
     test_transformer = T.Compose([
         T.Resize((height, width), interpolation=3),
@@ -101,11 +102,44 @@ def get_test_loader(dataset, height, width, batch_size, workers, testset=None):
     return test_loader
 
 
-def create_model(args, ncs):
+
+
+def copy_state_dict(state_dict, model, strip=None):
+    tgt_state = model.state_dict()
+    copied_names = set()
+    for name, param in state_dict.items():
+        name = name.replace('module.', '')
+        if strip is not None and name.startswith(strip):
+            name = name[len(strip):]
+        if name not in tgt_state:
+            continue
+        if isinstance(param, Parameter):
+            param = param.data
+        if param.size() != tgt_state[name].size():
+            print('mismatch:', name, param.size(), tgt_state[name].size())
+            continue
+        tgt_state[name].copy_(param)
+        copied_names.add(name)
+
+    missing = set(tgt_state.keys()) - copied_names
+    if len(missing) > 0:
+        print("missing keys in state_dict:", missing)
+
+    return model
+
+def create_model(args, ncs, wopre=False):
     model_1 = models.create(args.arch, num_features=args.features, dropout=args.dropout,
                             num_classes=ncs)
+
     model_1_ema = models.create(args.arch, num_features=args.features, dropout=args.dropout,
                                 num_classes=ncs)
+
+    initial_weights = load_checkpoint(args.init_1)
+    copy_state_dict(initial_weights['state_dict'], model_1)
+    copy_state_dict(initial_weights['state_dict'], model_1_ema)
+    print('load pretrain model:{}'.format(args.init_1))
+
+
     model_1.cuda()
     model_1_ema.cuda()
     model_1 = nn.DataParallel(model_1)
@@ -113,10 +147,7 @@ def create_model(args, ncs):
 
     for i, cl in enumerate(ncs):
         exec('model_1_ema.module.classifier{}_{}.weight.data.copy_(model_1.module.classifier{}_{}.weight.data)'.format(i,cl,i,cl))
-    initial_weights = load_checkpoint(args.init_1)
-    copy_state_dict(initial_weights['state_dict'], model_1)
-    copy_state_dict(initial_weights['state_dict'], model_1_ema)
-    print('load pretrain model:{}'.format(args.init_1))
+
     return model_1, None, model_1_ema, None  # model_1, model_2, model_1_ema, model_2_ema
 
 def main():
@@ -130,7 +161,12 @@ def main():
 
     main_worker(args)
 
+
+
 import collections
+
+def func(x, a, b, c):
+    return a * np.exp(-b * x) + c
 
 def print_cluster_acc(label_dict,target_label_tmp):
     num_correct = 0
@@ -141,8 +177,6 @@ def print_cluster_acc(label_dict,target_label_tmp):
     cluster_accuracy = num_correct / len(target_label_tmp)
     print(f'cluster accucary: {cluster_accuracy:.3f}')
 
-def kmeans_cluster(f):
-    pass
 
 def main_worker(args):
     global start_epoch, best_mAP
@@ -155,20 +189,23 @@ def main_worker(args):
     # Create data loaders
     iters = args.iters if (args.iters > 0) else None
     ncs = [int(x) for x in args.ncs.split(',')]
-
+    # ncs_dbscan=ncs.copy()
     dataset_target, label_dict = get_data(args.dataset_target, args.data_dir, len(ncs))
+    dataset_source, _ = get_data(args.dataset_source, args.data_dir, len(ncs))
 
     test_loader_target = get_test_loader(dataset_target, args.height, args.width, args.batch_size, args.workers)
 
+
     tar_cluster_loader = get_test_loader(dataset_target, args.height, args.width, args.batch_size, args.workers,
                                          testset=dataset_target.train)
+
 
     fc_len = 3500
     model_1, _, model_1_ema, _ = create_model(args, [fc_len for _ in range(len(ncs))])
     print(model_1)
 
-    # Initialize source-domain class centroids
 
+    #target_label = np.load("target_label.npy")
     epoch = 0
     target_features_dict, _ = extract_features(model_1_ema, tar_cluster_loader, print_freq=100)
 
@@ -188,14 +225,17 @@ def main_worker(args):
     # select & cluster images as training set of this epochs
     pseudo_labels = cluster.fit_predict(rerank_dist)
 
+    num_ids = len(set(pseudo_labels)) - (1 if -1 in pseudo_labels else 0)
+
     p1=[]
+
     new_dataset=[]
     for i, (item, label) in enumerate(zip(dataset_target.train, pseudo_labels)):
         if label == -1:continue
         p1.append(label)
         new_dataset.append((item[0], label, item[-1]))
     target_label = [p1]
-    ncs = len(set(p1)) + 1
+    ncs = [len(set(p1)) + 1]
 
     print('new class are {}, length of new dataset is {}'.format(ncs,len(new_dataset)))
 
@@ -205,13 +245,14 @@ def main_worker(args):
 
     # evaluator_1.evaluate(test_loader_target, dataset_target.query, dataset_target.gallery,
     #                      cmc_flag=True)
-    evaluator_1_ema.evaluate(test_loader_target, dataset_target.query, dataset_target.gallery,
-                         cmc_flag=True)
+    # evaluator_1_ema.evaluate(test_loader_target, dataset_target.query, dataset_target.gallery,
+    #                      cmc_flag=True)
     clusters = [args.num_clusters] * args.epochs# TODO: dropout clusters
 
 
-    print("Training begining~~~~~~!!!!!!!!!")
 
+
+    print("Training begining~~~~~~!!!!!!!!!")
     for epoch in range(len(clusters)):
 
         iters_ = 300 if epoch  % 1== 0 else iters
@@ -226,8 +267,10 @@ def main_worker(args):
 
             # select & cluster images as training set of this epochs
             pseudo_labels = cluster.fit_predict(rerank_dist)
+            num_ids = len(set(pseudo_labels)) - (1 if -1 in pseudo_labels else 0)
 
             p1 = []
+
             new_dataset = []
 
             for i, (item, label) in enumerate(zip(dataset_target.train, pseudo_labels)):
@@ -236,14 +279,15 @@ def main_worker(args):
                 p1.append(label)
                 new_dataset.append((item[0], label, item[-1]))
             target_label = [p1]
-            ncs = len(set(p1)) + 1
+            ncs = [len(set(p1)) + 1]
+
             print('new class are {}, length of new dataset is {}'.format(ncs, len(new_dataset)))
 
 
             obj = collections.Counter(pseudo_labels)
             print("The number of label is {}".format(obj))
 
-        target_label = target_label[0]
+        target_label = [target_label[0]]
 
         # change pseudo labels
         for i in range(len(new_dataset)):
@@ -252,8 +296,9 @@ def main_worker(args):
                 new_dataset[i][j+1] = int(target_label[j][i])
             new_dataset[i] = tuple(new_dataset[i])
 
-
-        train_loader_target = get_train_loader(dataset_target, args.height, args.width, args.choice_c,
+        # print(nc,"============"+str(iters_))
+        cc=args.choice_c#(args.choice_c+1)%len(ncs)
+        train_loader_target = get_train_loader(dataset_target, args.height, args.width, cc,
                                                args.batch_size, args.workers, args.num_instances, iters_, new_dataset)
 
         # Optimizer
@@ -269,6 +314,10 @@ def main_worker(args):
                 print(key)
                 continue
             params += [{"params": [value], "lr": args.lr*flag, "weight_decay": args.weight_decay}]
+        # for key, value in model_2.named_parameters():
+        #     if not value.requires_grad:
+        #         continue
+        #     params += [{"params": [value], "lr": args.lr, "weight_decay": args.weight_decay}]
 
         optimizer = torch.optim.Adam(params)
 
@@ -278,13 +327,24 @@ def main_worker(args):
 
 
         train_loader_target.new_epoch()
-
+        # index2label = dict([(i, j) for i, j in enumerate(np.asarray(target_label[0]))])
+        # index2label1= dict([(i, j) for i, j in enumerate(np.asarray(target_label[1]))])
+        # index2label2 = dict([(i, j) for i, j in enumerate(np.asarray(target_label[2]))])
 
 
         trainer.train(epoch, train_loader_target, optimizer, args.choice_c,
+                      ce_soft_weight=args.soft_ce_weight, tri_soft_weight=args.soft_tri_weight,
                       print_freq=args.print_freq, train_iters=iters_)
 
+        # if epoch>20:
+        # o.optimize_labels()
 
+        # ecn.L = o.L
+
+        # if nc ==yhua[-1]:
+        #     while nc ==yhua[-1]:
+        #         target_label_o = o.optimize_labels()
+        #         yhua= yhua[:-1]
 
         def save_model(model_ema, is_best, best_mAP, mid):
             save_checkpoint({
@@ -375,7 +435,7 @@ if __name__ == '__main__':
 
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--print-freq', type=int, default=100)
-    parser.add_argument('--eval-step', type=int, default=2)
+    parser.add_argument('--eval-step', type=int, default=1)
     parser.add_argument('--n-jobs', type=int, default=8)
     # path
     working_dir = osp.dirname(osp.abspath(__file__))

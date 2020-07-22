@@ -27,8 +27,9 @@ start_epoch = best_mAP = 0
 
 def get_data(name, data_dir, height, width, batch_size, workers, num_instances, iters=200):
     root = osp.join(data_dir)
-
+    normalizer = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
     dataset = datasets.create(name, root)
+
 
 
     train_set = dataset.train
@@ -40,13 +41,15 @@ def get_data(name, data_dir, height, width, batch_size, workers, num_instances, 
              T.Pad(10),
              T.RandomCrop((height, width)),
              # T.AugMix(),
-             T.ToTensor()
+             T.ToTensor(),
+             normalizer
          ])
 
 
     test_transformer = T.Compose([
              T.Resize((height, width), interpolation=3),
-             T.ToTensor()
+             T.ToTensor(),
+             normalizer
          ])
 
     rmgs_flag = num_instances > 0

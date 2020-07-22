@@ -10,6 +10,7 @@ from .loss import TripletLoss, CrossEntropyLabelSmooth, SoftTripletLoss
 from .utils.meters import AverageMeter
 
 
+
 class PreTrainer(object):
     def __init__(self, model, num_classes, margin=0.0):
         super(PreTrainer, self).__init__()
@@ -89,15 +90,18 @@ class PreTrainer(object):
 
         return loss_ce, loss_tr, prec
 
+
+
+
 class DbscanBaseTrainer(object):
     def __init__(self, model_1, model_1_ema, num_cluster=None, c_name=None, alpha=0.999,fc_len=3000):
         super(DbscanBaseTrainer, self).__init__()
         self.model_1 = model_1
-
+        # self.model_2 = model_2
         self.num_cluster = num_cluster
         self.c_name = [fc_len for _ in range(len(num_cluster))]
         self.model_1_ema = model_1_ema
-
+        # self.model_2_ema = model_2_ema
         self.alpha = alpha
         for i,cl in enumerate(self.num_cluster):
             exec("self.criterion_ce{}_{} = CrossEntropyLabelSmooth({}).cuda()".format(i,self.c_name[i],cl))
@@ -105,20 +109,19 @@ class DbscanBaseTrainer(object):
         self.criterion_tri = SoftTripletLoss(margin=0.0).cuda()
 
 
-    def train(self, epoch, data_loader_target, optimizer, choice_c,
-              print_freq=100, train_iters=200):
+    def train(self, epoch, data_loader_target, optimizer, choice_c, ce_soft_weight=0.5,
+              tri_soft_weight=0.5, print_freq=100, train_iters=200):
 
         self.model_1.train()
         self.model_1_ema.train()
+
 
         batch_time = AverageMeter()
         data_time = AverageMeter()
 
         losses_ce = [AverageMeter(),AverageMeter()]
         losses_tri = [AverageMeter(),AverageMeter()]
-        loss_kldiv = AverageMeter()
-        loss_s = AverageMeter()
-        contra_loss = AverageMeter()
+
         precisions = [AverageMeter(),AverageMeter()]
 
         end = time.time()
@@ -135,21 +138,18 @@ class DbscanBaseTrainer(object):
 
             inputs_1_t, inputs_2_t, index_t = items[0], items[1], items[-1]
 
-            f_out_t1, p_out_t1, _, _ = self.model_1(inputs_1_t, training=True)
+            f_out_t1, p_out_t1, memory_f_t1 = self.model_1(inputs_1_t, training=True)
 
             with torch.no_grad():
-                self.model_1_ema(inputs_1_t, training=True)
-
+                f_out_t1_ema, p_out_t1_ema, memory_f_t1_ema =self.model_1_ema(inputs_1_t, training=True)
 
             loss_ce_1 = []
 
             for k,nc in enumerate(self.num_cluster):
-                exec("loss_ce_1.append(self.criterion_ce{}_{}(p_out_t1, items[{}]))".format(k, self.c_name[k], k+2))
+                exec("loss_ce_1.append(self.criterion_ce{}_{}(p_out_t1[0], items[{}]))".format(k, self.c_name[k], k+2))
             loss_ce_1 = sum(loss_ce_1)/len(self.num_cluster)
 
             loss_tri_1 = self.criterion_tri(f_out_t1, f_out_t1, items[choice_c+2])
-
-
 
             loss = loss_ce_1 + loss_tri_1
             optimizer.zero_grad()
@@ -159,12 +159,13 @@ class DbscanBaseTrainer(object):
             self._update_ema_variables(self.model_1, self.model_1_ema, self.alpha, epoch*len(data_loader_target)+i)
 
 
-            prec_1, = accuracy(p_out_t1.data, items[choice_c+2].data)
+            prec_1, = accuracy(p_out_t1[0].data, items[choice_c+2].data)
             # prec_2, = accuracy(p_out_t2.data, targets.data)
 
 
             losses_ce[0].update(loss_ce_1.item())
             losses_tri[0].update(loss_tri_1.item())
+
             precisions[0].update(prec_1[0])
 
             # print log #
@@ -177,15 +178,22 @@ class DbscanBaseTrainer(object):
                       'Data {:.3f} ({:.3f})\t'
                       'Loss_ce {:.3f} \t'
                       'Loss_tri {:.3f} \t'
-                      'Prec {:.2%} \t'
+                      'Prec {:.2%} / {:.2%}\t'
                       .format(epoch, i , len(data_loader_target),
                               batch_time.val, batch_time.avg,
                               data_time.val, data_time.avg,
                               losses_ce[0].avg,
                               losses_tri[0].avg,
-                              precisions[0].avg))
+                              precisions[0].avg, precisions[1].avg))
 
 
+    def get_shuffle_ids(self, bsz):
+        """generate shuffle ids for shufflebn"""
+        forward_inds = torch.randperm(bsz).long().cuda()
+        backward_inds = torch.zeros(bsz).long().cuda()
+        value = torch.arange(bsz).long().cuda()
+        backward_inds.index_copy_(0, forward_inds, value)
+        return forward_inds, backward_inds
 
     def _update_ema_variables(self, model, ema_model, alpha, global_step):
         alpha = min(1 - 1 / (global_step + 1), alpha)
@@ -206,3 +214,4 @@ class DbscanBaseTrainer(object):
         index = inputs[-1].cuda()
         pids.append(pid.cuda())
         return [inputs_1,inputs_2]+ pids+[index]
+

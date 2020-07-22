@@ -5,7 +5,6 @@ import torch.nn.functional as F
 
 class CrossEntropyLabelSmooth(nn.Module):
 
-
 	def __init__(self, num_classes, epsilon=0.1):
 		super(CrossEntropyLabelSmooth, self).__init__()
 		self.num_classes = num_classes
