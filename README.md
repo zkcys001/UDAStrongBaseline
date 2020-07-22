@@ -4,7 +4,7 @@
 
 UDAStrongBaseline is a transitional code based pyTorch framework for both unsupervised learning (USL) 
 and unsupervised domain adaptation (UDA) in the context of object re-ID tasks. It provides stronger 
-baselines on these tasks. It needs the enviorment: Python >=3.6 and PyTorch >=1.1. We will transfer al; the codes to the [fastreid](https://github.com/JDAI-CV/fast-reid) in the future (ongoing).
+baselines on these tasks. It needs the enviorment: Python >=3.6 and PyTorch >=1.1. We will transfer all the codes to the [fastreid](https://github.com/JDAI-CV/fast-reid) in the future (ongoing).
 
 
 ### Unsupervised domain adaptation (UDA) on Person re-ID
@@ -32,7 +32,7 @@ repository will be released upon the paper published.
 
 | Method | Backbone | Pre-trained | mAP(%) | top-1(%) | top-5(%) | top-10(%) | Train time |
 | ----- | :------: | :---------: | :----: | :------: | :------: | :-------: | :------: | 
-| Direct infer | ResNet50 | Market | 34.1 | 51.3 | 65.3 | 71.7 | ~1h | 
+| Direct infer | ResNet50 | Market1501 | 34.1 | 51.3 | 65.3 | 71.7 | ~1h | 
 | [UDA_TP](https://github.com/open-mmlab/OpenUnReID/) PR'2020| ResNet50 | Market1501 | 45.7 | 65.5 | 78.0 | 81.7 | ~2h |
 | [MMT](https://github.com/open-mmlab/OpenUnReID/) ICLR'2020| ResNet50 | imagenet | 67.7 | 80.3 | 89.9 | 92.9 | ~6h |
 | [SpCL](https://github.com/open-mmlab/OpenUnReID/) NIPS'2020 submission | ResNet50 | imagenet | 70.4 | 83.8 | 91.2 | 93.4 | ~3h |
@@ -95,8 +95,6 @@ Utilizeing DBSCAN clustering algorithm
 sh scripts/dbscan_baseline_market2duke.sh
 sh scripts/dbscan_baseline_duke2market.sh
 ```
-
-
 
 
 
