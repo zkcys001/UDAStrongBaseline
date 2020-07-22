@@ -4,7 +4,6 @@ from .triplet import TripletLoss, SoftTripletLoss
 from .crossentropy import CrossEntropyLabelSmooth, SoftEntropy
 from .multisoftmax import MultiSoftmaxLoss
 from .invariance import InvNet
-# from .crossbatch import CrossBatchMemory
 __all__ = [
     'TripletLoss',
     'CrossEntropyLabelSmooth',
@@ -12,6 +11,4 @@ __all__ = [
     'SoftEntropy',
     'MultiSoftmaxLoss',
     'InvNet',
-    # 'crossbatch',
 ]
-

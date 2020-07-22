@@ -2,7 +2,7 @@
 <project version="4">
   <component name="ProjectModuleManager">
     <modules>
-      <module fileurl="file://$PROJECT_DIR$/.idea/moco_reid_mb.iml" filepath="$PROJECT_DIR$/.idea/moco_reid_mb.iml" />
+      <module fileurl="file://$PROJECT_DIR$/.idea/selflabelonline.iml" filepath="$PROJECT_DIR$/.idea/selflabelonline.iml" />
     </modules>
   </component>
 </project>

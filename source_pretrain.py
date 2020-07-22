@@ -21,7 +21,6 @@ from UDAsbs.utils.data.preprocessor import Preprocessor
 from UDAsbs.utils.logging import Logger
 from UDAsbs.utils.serialization import load_checkpoint, save_checkpoint, copy_state_dict
 from UDAsbs.utils.lr_scheduler import WarmupMultiStepLR
-from UDAsbs.replicate import patch_replication_callback
 
 
 start_epoch = best_mAP = 0
@@ -30,8 +29,7 @@ def get_data(name, data_dir, height, width, batch_size, workers, num_instances, 
     root = osp.join(data_dir)
 
     dataset = datasets.create(name, root)
-    # normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],
-    #                          std=[0.229, 0.224, 0.225])
+
 
     train_set = dataset.train
     num_classes = dataset.num_train_pids
@@ -42,15 +40,13 @@ def get_data(name, data_dir, height, width, batch_size, workers, num_instances, 
              T.Pad(10),
              T.RandomCrop((height, width)),
              # T.AugMix(),
-             T.ToTensor(),
-             # normalizer,
+             T.ToTensor()
          ])
 
 
     test_transformer = T.Compose([
              T.Resize((height, width), interpolation=3),
-             T.ToTensor(),
-             # normalizer,
+             T.ToTensor()
          ])
 
     rmgs_flag = num_instances > 0
@@ -63,7 +59,7 @@ def get_data(name, data_dir, height, width, batch_size, workers, num_instances, 
                 DataLoader(Preprocessor(train_set, root=dataset.images_dir,
                                         transform=train_transformer),
                             batch_size=batch_size, num_workers=workers, sampler=sampler,
-                            shuffle=not rmgs_flag, pin_memory=False, drop_last=True), length=iters)
+                            shuffle=not rmgs_flag, pin_memory=True, drop_last=True), length=iters)
 
     test_loader = DataLoader(
         Preprocessor(list(set(dataset.query) | set(dataset.gallery)),
@@ -112,9 +108,8 @@ def main_worker(args):
     model = models.create(args.arch, num_features=args.features, dropout=args.dropout,
                           num_classes=[num_classes])
     model.cuda()
-    # model = nn.DataParallel(model)
-    # patch_replication_callback(model)
-
+    model = nn.DataParallel(model)
+    print(model)
     # Load from checkpoint
     if args.resume:
         checkpoint = load_checkpoint(args.resume)
@@ -184,7 +179,7 @@ if __name__ == '__main__':
     parser.add_argument('-dt', '--dataset-target', type=str, default='dukemtmc',
                         choices=datasets.names())
     parser.add_argument('-b', '--batch-size', type=int, default=64)
-    parser.add_argument('-j', '--workers', type=int, default=16)
+    parser.add_argument('-j', '--workers', type=int, default=4)
     parser.add_argument('--height', type=int, default=256, help="input height")
     parser.add_argument('--width', type=int, default=128, help="input width")
     parser.add_argument('--num-instances', type=int, default=4,
@@ -193,7 +188,7 @@ if __name__ == '__main__':
                              "each identity has num_instances instances, "
                              "default: 0 (NOT USE)")
     # model
-    parser.add_argument('-a', '--arch', type=str, default='resnet50ibn_sbs',
+    parser.add_argument('-a', '--arch', type=str, default='resnet50',
                         choices=models.names())
     parser.add_argument('--features', type=int, default=0)
     parser.add_argument('--dropout', type=float, default=0)

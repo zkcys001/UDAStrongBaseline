@@ -10,6 +10,5 @@ from . import utils
 from . import dist_metric
 from . import evaluators
 from . import trainers
-from . import replicate
 
 __version__ = '1.0.0'

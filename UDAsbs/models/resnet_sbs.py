@@ -26,6 +26,7 @@ class ResNet(nn.Module):
         152: torchvision.models.resnet152,
     }
 
+
     def __init__(self, depth, mb_h=2048, pretrained=True, cut_at_pooling=False,
                  num_features=0, norm=False, dropout=0, num_classes=None):
         super(ResNet, self).__init__()
@@ -36,20 +37,20 @@ class ResNet(nn.Module):
         if depth not in ResNet.__factory:
             raise KeyError("Unsupported depth:", depth)
         resnet = ResNet.__factory[depth](pretrained=pretrained)
-
-        resnet.layer4[0].conv2.stride = (1, 1)
-        resnet.layer4[0].downsample[0].stride = (1, 1)
+        
+        resnet.layer4[0].conv2.stride = (1,1)
+        resnet.layer4[0].downsample[0].stride = (1,1)
         self.base = nn.Sequential(
-            resnet.conv1, resnet.bn1, resnet.maxpool)  # no relu
-
-        with_nl = True
-        self.layer1 = resnet.layer1
-        self.layer2 = resnet.layer2
-        self.layer3 = resnet.layer3
-        self.layer4 = resnet.layer4
-        layers = {34: [3, 4, 6, 3], 50: [3, 4, 6, 3], 101: [3, 4, 23, 3], 152: [3, 8, 36, 3], }[depth]
+            resnet.conv1, resnet.bn1, resnet.maxpool) # no relu
+            
+        with_nl=True
+        self.layer1=resnet.layer1
+        self.layer2=resnet.layer2
+        self.layer3=resnet.layer3
+        self.layer4=resnet.layer4
+        layers= {34: [3, 4, 6, 3], 50: [3, 4, 6, 3], 101: [3, 4, 23, 3], 152: [3, 8, 36, 3], }[depth]
         non_layers = {34: [3, 4, 6, 3], 50: [0, 2, 3, 0], 101: [0, 2, 9, 0]}[depth]
-        num_splits = 1
+        num_splits=1
         if with_nl:
             self._build_nonlocal(layers, non_layers, 'BN', num_splits)
         else:
@@ -58,11 +59,13 @@ class ResNet(nn.Module):
         # self.gap = nn.AdaptiveAvgPool2d(1)
         print("GeneralizedMeanPoolingP")
         self.gap = GeneralizedMeanPoolingP(3)
+      
 
-        # self.memorybank_fc = nn.Linear(2048, mb_h)
-        # self.mbn = nn.BatchNorm1d(mb_h)
-        # init.kaiming_normal_(self.memorybank_fc.weight, mode='fan_out')
-        # init.constant_(self.memorybank_fc.bias, 0)
+        self.memorybank_fc = nn.Linear(2048, mb_h)
+        self.mbn=nn.BatchNorm1d(mb_h)
+        init.kaiming_normal_(self.memorybank_fc.weight, mode='fan_out')
+        init.constant_(self.memorybank_fc.bias, 0)
+
 
         # self.memorybank_fc = nn.Sequential(
         #     nn.Linear(2048, 512, bias=True),
@@ -95,39 +98,38 @@ class ResNet(nn.Module):
             if self.dropout > 0:
                 self.drop = nn.Dropout(self.dropout)
             if self.num_classes is not None:
-                for i, num_cluster in enumerate(self.num_classes):
-                    exec("self.classifier{}_{} = nn.Linear(self.num_features, {}, bias=False)".format(i, num_cluster,
-                                                                                                      num_cluster))
-                    exec("init.normal_(self.classifier{}_{}.weight, std=0.001)".format(i, num_cluster))
-        # sour_class = 751
-        # self.classifier_ml = nn.Sequential(
-        #     nn.Linear(self.num_features, 512, bias=True),
-        #     nn.BatchNorm1d(512),
-        #     nn.LeakyReLU(),
-        #     nn.Linear(512, sour_class, bias=False),
-        #     nn.BatchNorm1d(sour_class)
-        # )
+                for i,num_cluster in enumerate(self.num_classes):
+                    exec("self.classifier{}_{} = nn.Linear(self.num_features, {}, bias=False)".format(i,num_cluster,num_cluster))
+                    exec("init.normal_(self.classifier{}_{}.weight, std=0.001)".format(i,num_cluster))
+        sour_class=751
+        self.classifier_ml =  nn.Sequential(
+            nn.Linear(self.num_features, 512, bias=True),
+            nn.BatchNorm1d(512),
+            nn.LeakyReLU(),
+            nn.Linear(512, sour_class, bias=False),
+            nn.BatchNorm1d(sour_class)
+        )
+
 
         if not pretrained:
             self.reset_params()
-
+            
     def _build_nonlocal(self, layers, non_layers, bn_norm, num_splits):
-        self.NL_1 = nn.ModuleList(
-            [Non_local(256, bn_norm, num_splits) for _ in range(non_layers[0])])
-        self.NL_1_idx = sorted([layers[0] - (i + 1) for i in range(non_layers[0])])
-        self.NL_2 = nn.ModuleList(
-            [Non_local(512, bn_norm, num_splits) for _ in range(non_layers[1])])
-        self.NL_2_idx = sorted([layers[1] - (i + 1) for i in range(non_layers[1])])
-        self.NL_3 = nn.ModuleList(
-            [Non_local(1024, bn_norm, num_splits) for _ in range(non_layers[2])])
-        self.NL_3_idx = sorted([layers[2] - (i + 1) for i in range(non_layers[2])])
-        self.NL_4 = nn.ModuleList(
-            [Non_local(2048, bn_norm, num_splits) for _ in range(non_layers[3])])
-        self.NL_4_idx = sorted([layers[3] - (i + 1) for i in range(non_layers[3])])
-
+      self.NL_1 = nn.ModuleList(
+          [Non_local(256, bn_norm, num_splits) for _ in range(non_layers[0])])
+      self.NL_1_idx = sorted([layers[0] - (i + 1) for i in range(non_layers[0])])
+      self.NL_2 = nn.ModuleList(
+          [Non_local(512, bn_norm, num_splits) for _ in range(non_layers[1])])
+      self.NL_2_idx = sorted([layers[1] - (i + 1) for i in range(non_layers[1])])
+      self.NL_3 = nn.ModuleList(
+          [Non_local(1024, bn_norm, num_splits) for _ in range(non_layers[2])])
+      self.NL_3_idx = sorted([layers[2] - (i + 1) for i in range(non_layers[2])])
+      self.NL_4 = nn.ModuleList(
+          [Non_local(2048, bn_norm, num_splits) for _ in range(non_layers[3])])
+      self.NL_4_idx = sorted([layers[3] - (i + 1) for i in range(non_layers[3])])
     def forward(self, x, feature_withbn=False, training=False, cluster=False):
         x = self.base(x)
-
+        
         NL1_counter = 0
         if len(self.NL_1_idx) == 0:
             self.NL_1_idx = [-1]
@@ -167,44 +169,46 @@ class ResNet(nn.Module):
                 _, C, H, W = x.shape
                 x = self.NL_4[NL4_counter](x)
                 NL4_counter += 1
-
+        
         x = self.gap(x)
 
         x = x.view(x.size(0), -1)
 
-        if self.cut_at_pooling: return x  # FALSE
+        if self.cut_at_pooling:return x#FALSE
 
         if self.has_embedding:
-            bn_x = self.feat_bn(self.feat(x))  # FALSE
+            bn_x = self.feat_bn(self.feat(x))#FALSE
         else:
-            bn_x = self.feat_bn(x)  # 1
+            bn_x = self.feat_bn(x)#1
 
         if training is False:
             bn_x = F.normalize(bn_x)
             return bn_x
 
-        if self.norm:  # FALSE
+        if self.norm:#FALSE
             bn_x = F.normalize(bn_x)
-        elif self.has_embedding:  # FALSE
+        elif self.has_embedding:#FALSE
             bn_x = F.relu(bn_x)
 
-        if self.dropout > 0:  # FALSE
+        if self.dropout > 0:#FALSE
             bn_x = self.drop(bn_x)
 
         prob = []
         if self.num_classes is not None:
-            for i, num_cluster in enumerate(self.num_classes):
-                exec("prob.append(self.classifier{}_{}(bn_x))".format(i, num_cluster))
+            for i,num_cluster in enumerate(self.num_classes):
+                exec("prob.append(self.classifier{}_{}(bn_x))".format(i,num_cluster))
         else:
             return x, bn_x
 
-        if feature_withbn:  # False
-            return bn_x, prob
-        #mb_x = self.mbn(self.memorybank_fc(bn_x))
+        if feature_withbn:#False
+           return bn_x, prob
+        mb_x = self.mbn(self.memorybank_fc(bn_x))
 
-        #ml_x = self.classifier_ml(bn_x)
+        ml_x = self.classifier_ml(bn_x)
 
-        return x, prob, None#, ml_x
+        return x, prob, mb_x, ml_x
+
+
 
     def reset_params(self):
         for m in self.modules():
@@ -234,8 +238,6 @@ class ResNet(nn.Module):
 
 
 
-
-def resnet50_sbs(mb_h, **kwargs):
+def resnet50_sbs(mb_h,**kwargs):
     return ResNet(50, mb_h=mb_h, **kwargs)
-
 

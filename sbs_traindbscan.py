@@ -7,16 +7,16 @@ import sys
 
 
 from sklearn.cluster import DBSCAN
-from sklearn.preprocessing import normalize
+# from sklearn.preprocessing import normalize
 
 import torch
 from torch import nn
 from torch.backends import cudnn
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
-from torch.nn import init
-
-from UDAsbs.utils.rerank import compute_jaccard_dist
+# from torch.nn import init
+#
+# from mmt.utils.rerank import compute_jaccard_dist
 
 from UDAsbs import datasets
 from UDAsbs import models
@@ -29,8 +29,8 @@ from UDAsbs.utils.data.preprocessor import Preprocessor
 from UDAsbs.utils.logging import Logger
 from UDAsbs.utils.serialization import load_checkpoint, save_checkpoint, copy_state_dict
 
-from UDAsbs.MemoryBank.NCEAverage import MemoryMoCo_id
 from UDAsbs.utils.faiss_rerank import compute_jaccard_distance
+
 
 
 start_epoch = best_mAP = 0
@@ -42,23 +42,25 @@ def get_data(name, data_dir, l=1):
 
     label_dict = {}
     for i, item_l in enumerate(dataset.train):
-        dataset.train[i]=(item_l[0],0,item_l[2])
+        # dataset.train[i]=(item_l[0],0,item_l[2])
         if item_l[1] in label_dict:
             label_dict[item_l[1]].append(i)
         else:
             label_dict[item_l[1]] = [i]
+
     return dataset, label_dict
 
 
 def get_train_loader(dataset, height, width, choice_c, batch_size, workers,
                      num_instances, iters, trainset=None):
-
+    normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
     train_transformer = T.Compose([
         T.Resize((height, width), interpolation=3),
         T.RandomHorizontalFlip(p=0.5),
         T.Pad(10),
         T.RandomCrop((height, width)),
         T.ToTensor(),
+        normalizer,
         T.RandomErasing(probability=0.5, mean=[0.596, 0.558, 0.497])
     ])
 
@@ -68,6 +70,7 @@ def get_train_loader(dataset, height, width, choice_c, batch_size, workers,
         sampler = RandomMultipleGallerySampler(train_set, num_instances, choice_c)
     else:
         sampler = None
+
     train_loader = IterLoader(
         DataLoader(Preprocessor(train_set, root=dataset.images_dir,
                                 transform=train_transformer, mutual=True),
@@ -79,11 +82,12 @@ def get_train_loader(dataset, height, width, choice_c, batch_size, workers,
 
 
 def get_test_loader(dataset, height, width, batch_size, workers, testset=None):
-
+    normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
 
     test_transformer = T.Compose([
         T.Resize((height, width), interpolation=3),
-        T.ToTensor()
+        T.ToTensor(),
+        normalizer
     ])
 
     if (testset is None):
@@ -98,33 +102,22 @@ def get_test_loader(dataset, height, width, batch_size, workers, testset=None):
 
 
 def create_model(args, ncs):
-
     model_1 = models.create(args.arch, num_features=args.features, dropout=args.dropout,
                             num_classes=ncs)
-
     model_1_ema = models.create(args.arch, num_features=args.features, dropout=args.dropout,
-                               num_classes=ncs)
-
-
+                                num_classes=ncs)
     model_1.cuda()
     model_1_ema.cuda()
-
     model_1 = nn.DataParallel(model_1)
     model_1_ema = nn.DataParallel(model_1_ema)
 
+    for i, cl in enumerate(ncs):
+        exec('model_1_ema.module.classifier{}_{}.weight.data.copy_(model_1.module.classifier{}_{}.weight.data)'.format(i,cl,i,cl))
     initial_weights = load_checkpoint(args.init_1)
     copy_state_dict(initial_weights['state_dict'], model_1)
     copy_state_dict(initial_weights['state_dict'], model_1_ema)
-    for i,cl in enumerate(ncs):
-        exec('model_1_ema.module.classifier{}_{}.weight.data.copy_(model_1.module.classifier{}_{}.weight.data)'.format(i,cl,i,cl))
-
-
-
-    for param in model_1_ema.parameters():
-        param.detach_()
-
-
-    return model_1, model_1_ema
+    print('load pretrain model:{}'.format(args.init_1))
+    return model_1, None, model_1_ema, None  # model_1, model_2, model_1_ema, model_2_ema
 
 def main():
     args = parser.parse_args()
@@ -139,18 +132,6 @@ def main():
 
 import collections
 
-
-def write_sta_im(train_loader):
-    label2num=collections.defaultdict(int)
-    save_label=[]
-    for x in train_loader:
-        label2num[x[1]]+=1
-        save_label.append(x[1])
-    labels=sorted(label2num.items(),key=lambda item:item[1])[::-1]
-    num = [j for i, j in labels]
-    distribution = np.array(num)/len(train_loader)
-
-    return num,save_label
 def print_cluster_acc(label_dict,target_label_tmp):
     num_correct = 0
     for pid in label_dict:
@@ -160,6 +141,8 @@ def print_cluster_acc(label_dict,target_label_tmp):
     cluster_accuracy = num_correct / len(target_label_tmp)
     print(f'cluster accucary: {cluster_accuracy:.3f}')
 
+def kmeans_cluster(f):
+    pass
 
 def main_worker(args):
     global start_epoch, best_mAP
@@ -174,101 +157,93 @@ def main_worker(args):
     ncs = [int(x) for x in args.ncs.split(',')]
 
     dataset_target, label_dict = get_data(args.dataset_target, args.data_dir, len(ncs))
-    dataset_source, _ = get_data(args.dataset_source, args.data_dir, len(ncs))
 
     test_loader_target = get_test_loader(dataset_target, args.height, args.width, args.batch_size, args.workers)
-
 
     tar_cluster_loader = get_test_loader(dataset_target, args.height, args.width, args.batch_size, args.workers,
                                          testset=dataset_target.train)
 
-    distribution,save_label = write_sta_im(dataset_source.train)
-
     fc_len = 3500
-    model_1, model_1_ema = create_model(args, [fc_len for _ in range(len(ncs))])
+    model_1, _, model_1_ema, _ = create_model(args, [fc_len for _ in range(len(ncs))])
+    print(model_1)
 
-    clsuter_style = 'dbscan'
+    # Initialize source-domain class centroids
 
     epoch = 0
-    target_features, _ = extract_features(model_1_ema, tar_cluster_loader, print_freq=100)
+    target_features_dict, _ = extract_features(model_1_ema, tar_cluster_loader, print_freq=100)
 
-    target_features =  torch.stack(list(target_features.values()))
+    target_features =  torch.stack(list(target_features_dict.values()))#torch.cat([target_features[f[0]].unsqueeze(0) for f in dataset_target.train], 0)
     target_features = F.normalize(target_features, dim=1)
     # Calculate distance
     print('==> Create pseudo labels for unlabeled target domain')
 
     rerank_dist = compute_jaccard_distance(target_features, k1=args.k1, k2=args.k2)
     del target_features
+    if (epoch == 0):
+        # DBSCAN cluster
+        eps = 0.6  # 0.6
+        print('Clustering criterion: eps: {:.3f}'.format(eps))
+        cluster = DBSCAN(eps=eps, min_samples=4, metric='precomputed', n_jobs=-1)
 
-    # DBSCAN cluster
-    eps = 0.6
-    print('Clustering criterion: eps: {:.3f}'.format(eps))
-    cluster = DBSCAN(eps=eps, min_samples=4, metric='precomputed', n_jobs=-1)
+    # select & cluster images as training set of this epochs
     pseudo_labels = cluster.fit_predict(rerank_dist)
 
-    new_label=[]
+    p1=[]
     new_dataset=[]
     for i, (item, label) in enumerate(zip(dataset_target.train, pseudo_labels)):
-        if label == -1:
-            continue
-        new_label.append(label)
+        if label == -1:continue
+        p1.append(label)
         new_dataset.append((item[0], label, item[-1]))
-    target_label = [new_label]
-    ncs=[len(set(new_label)) + 1]
+    target_label = [p1]
+    ncs = len(set(p1)) + 1
+
     print('new class are {}, length of new dataset is {}'.format(ncs,len(new_dataset)))
 
+    # Evaluator
     evaluator_1 = Evaluator(model_1)
     evaluator_1_ema = Evaluator(model_1_ema)
 
-    evaluator_1.evaluate(test_loader_target, dataset_target.query, dataset_target.gallery,
+    # evaluator_1.evaluate(test_loader_target, dataset_target.query, dataset_target.gallery,
+    #                      cmc_flag=True)
+    evaluator_1_ema.evaluate(test_loader_target, dataset_target.query, dataset_target.gallery,
                          cmc_flag=True)
-    clusters = [args.num_clusters] * args.epochs
+    clusters = [args.num_clusters] * args.epochs# TODO: dropout clusters
 
 
-
-    contrast = MemoryMoCo_id(2048, len(new_dataset), K=8192,
-                             index2label=target_label, choice_c=args.choice_c, T=0.07,
-                             use_softmax=True).cuda()
-
-
+    print("Training begining~~~~~~!!!!!!!!!")
 
     for epoch in range(len(clusters)):
+
         iters_ = 300 if epoch  % 1== 0 else iters
-        if epoch % 3 == 0 and epoch != 0:
-            target_features, _ = extract_features(model_1_ema, tar_cluster_loader, print_freq=50)
-            target_features = torch.stack(list(
-                target_features.values()))  # torch.cat([target_features[f[0]].unsqueeze(0) for f in dataset_target.train], 0)
+        if epoch % 6 == 0 and epoch != 0:
+            target_features_dict, _ = extract_features(model_1_ema, tar_cluster_loader, print_freq=50)
+
+            target_features = torch.stack(list(target_features_dict.values()))  # torch.cat([target_features[f[0]].unsqueeze(0) for f in dataset_target.train], 0)
             target_features = F.normalize(target_features, dim=1)
             # Calculate distance
             print('==> Create pseudo labels for unlabeled target domain with')
             rerank_dist = compute_jaccard_distance(target_features, k1=args.k1, k2=args.k2)
-            del target_features
 
             # select & cluster images as training set of this epochs
             pseudo_labels = cluster.fit_predict(rerank_dist)
 
-
-            new_label =[]
+            p1 = []
             new_dataset = []
 
-            for i, (item, label) in enumerate(
-                    zip(dataset_target.train, pseudo_labels)):
+            for i, (item, label) in enumerate(zip(dataset_target.train, pseudo_labels)):
                 if label == -1:
                     continue
-                new_label.append(label)
+                p1.append(label)
                 new_dataset.append((item[0], label, item[-1]))
-            target_label = [new_label]
-            ncs = [len(set(target_label)) + 1]
-
+            target_label = [p1]
+            ncs = len(set(p1)) + 1
             print('new class are {}, length of new dataset is {}'.format(ncs, len(new_dataset)))
 
 
             obj = collections.Counter(pseudo_labels)
             print("The number of label is {}".format(obj))
 
-        target_label = [np.asarray(target_label[i]) for i in range(len(ncs))]
-        contrast.index2label = target_label
-
+        target_label = target_label[0]
 
         # change pseudo labels
         for i in range(len(new_dataset)):
@@ -278,9 +253,7 @@ def main_worker(args):
             new_dataset[i] = tuple(new_dataset[i])
 
 
-        # print(nc,"============"+str(iters_))
-        cc=args.choice_c#(args.choice_c+1)%len(ncs)
-        train_loader_target = get_train_loader(dataset_target, args.height, args.width, cc,
+        train_loader_target = get_train_loader(dataset_target, args.height, args.width, args.choice_c,
                                                args.batch_size, args.workers, args.num_instances, iters_, new_dataset)
 
         # Optimizer
@@ -297,20 +270,21 @@ def main_worker(args):
                 continue
             params += [{"params": [value], "lr": args.lr*flag, "weight_decay": args.weight_decay}]
 
-
         optimizer = torch.optim.Adam(params)
 
         # Trainer
-        trainer = DbscanBaseTrainer(model_1, model_1_ema, contrast, None,
+        trainer = DbscanBaseTrainer(model_1, model_1_ema,
                              num_cluster=ncs, c_name=ncs,alpha=args.alpha, fc_len=fc_len)
 
 
         train_loader_target.new_epoch()
 
 
+
         trainer.train(epoch, train_loader_target, optimizer, args.choice_c,
-                      ce_soft_weight=args.soft_ce_weight, tri_soft_weight=args.soft_tri_weight,
                       print_freq=args.print_freq, train_iters=iters_)
+
+
 
         def save_model(model_ema, is_best, best_mAP, mid):
             save_checkpoint({
@@ -318,9 +292,9 @@ def main_worker(args):
                 'epoch': epoch + 1,
                 'best_mAP': best_mAP,
             }, is_best, fpath=osp.join(args.logs_dir, 'model' + str(mid) + '_checkpoint.pth.tar'))
-        if epoch==0:
+        if epoch==20:
             args.eval_step=2
-        elif epoch==40:
+        elif epoch==50:
             args.eval_step=1
         if ((epoch + 1) % args.eval_step == 0 or (epoch == args.epochs - 1)):
             mAP_1 = evaluator_1.evaluate(test_loader_target, dataset_target.query, dataset_target.gallery,
@@ -345,9 +319,9 @@ def main_worker(args):
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="MMT Training")
     # data
-    parser.add_argument('-st', '--dataset-source', type=str, default='dukemtmc',
+    parser.add_argument('-st', '--dataset-source', type=str, default='market1501',
                         choices=datasets.names())
-    parser.add_argument('-tt', '--dataset-target', type=str, default='market1501',
+    parser.add_argument('-tt', '--dataset-target', type=str, default='dukemtmc',
                         choices=datasets.names())
     parser.add_argument('-b', '--batch-size', type=int, default=64)
     parser.add_argument('-j', '--workers', type=int, default=8)
@@ -396,7 +370,7 @@ if __name__ == '__main__':
                         help="use GPU for accelerating clustering")
     # parser.add_argument('--init-1', type=str, default='logs/personxTOpersonxval/resnet_ibn50a-pretrain-1_gem_RA//model_best.pth.tar', metavar='PATH')
     parser.add_argument('--init-1', type=str,
-                        default='logs/dukemtmcTOmarket1501/resnet50-pretrain-0_norm/model_best.pth.tar',
+                        default='logs/market1501TOdukemtmc/resnet50-pretrain-1005/model_best.pth.tar',
                         metavar='PATH')
 
     parser.add_argument('--seed', type=int, default=1)
@@ -408,7 +382,7 @@ if __name__ == '__main__':
     parser.add_argument('--data-dir', type=str, metavar='PATH',
                         default=osp.join(working_dir, 'data'))
     parser.add_argument('--logs-dir', type=str, metavar='PATH',
-                        default=osp.join(working_dir, 'logs/d2m_baseline/255data'))
+                        default=osp.join(working_dir, 'logs/d2m_baseline/resnet50_sbs_gem_memory_ins1005_spbn_sour_debug'))
     print("======mmt_train_dbscan_self-labeling=======")
 
 

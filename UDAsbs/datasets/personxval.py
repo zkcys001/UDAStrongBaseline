@@ -18,7 +18,7 @@ class personXval(BaseImageDataset):
         super(personXval, self).__init__()
         self.dataset_dir = osp.join(root, self.dataset_dir)
 
-        self.train_dir = osp.join(self.dataset_dir, 'challenge_datasets/target_training/image_train_clean_ImageNet/')#
+        self.train_dir = osp.join(self.dataset_dir, 'challenge_datasets/target_training/image_train/')
         self.query_dir = osp.join(self.dataset_dir, 'challenge_datasets/target_validation/image_query/')
         self.gallery_dir = osp.join(self.dataset_dir, 'challenge_datasets/target_validation/image_gallery/')
 
@@ -27,14 +27,11 @@ class personXval(BaseImageDataset):
 
         self.ncl=ncl
         self.num_cam= 6
-
+        # camstytrain = self._process_dir(self.camstylegallery_dir, relabel=True)
         self.name2camera_path=osp.join(self.dataset_dir, 'challenge_datasets/target_training/label_target_training.txt')
         with open(self.name2camera_path,'r') as f:
-            self.name2camera_list=f.readlines()
-        self.name2camera={}
-        for item_pandc in self.name2camera_list:
-            img_path, camid = item_pandc.strip('\n').split(' ')
-            self.name2camera[img_path]=camid
+            self.name2camera=f.readlines()
+
         train = self._process_dir_train(self.train_dir,self.name2camera)
         query = self._process_dir(self.query_dir, relabel=False)
         gallery = self._process_dir(self.gallery_dir, relabel=False)
@@ -62,13 +59,12 @@ class personXval(BaseImageDataset):
         if not osp.exists(self.gallery_dir):
             raise RuntimeError("'{}' is not available".format(self.gallery_dir))
     def _process_dir_train(self, dir_path, name2cam):
-        img_paths = glob.glob(osp.join(dir_path, '*.jpg'))
+        #img_paths = glob.glob(osp.join(dir_path, '*.jpg'))
         # pattern = re.compile(r'([-\d]+)_c(\d)')
 
         dataset = []
-        for img_path in img_paths:
-            img_path=img_path.split('/')[-1]
-            camid=name2cam[img_path]
+        for item_pandc in name2cam:
+            img_path,camid=item_pandc.strip('\n').split(' ')
             img_path=osp.join(dir_path,img_path)
             pid = 0#map(int, pattern.search(img_path).groups())
             camid = int(camid)

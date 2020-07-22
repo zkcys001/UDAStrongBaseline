@@ -1,15 +1,10 @@
 from __future__ import absolute_import
 
-from .resnet import *
 from .resnet_sbs import resnet50_sbs
 
 __factory = {
-    'resnet18': resnet18,
-    'resnet34': resnet34,
-    'resnet50': resnet50,
-    'resnet101': resnet101,
-    'resnet152': resnet152,
-    'resnet50_sbs':resnet50_sbs,
+
+    'resnet50_sbs': resnet50_sbs
 }
 
 
@@ -50,4 +45,4 @@ def create(name, mb_h=2048, *args, **kwargs):
     """
     if name not in __factory:
         raise KeyError("Unknown model:", name)
-    return __factory[name](mb_h=mb_h, *args, **kwargs)
+    return __factory[name](mb_h=mb_h,*args, **kwargs)

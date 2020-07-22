@@ -8,7 +8,6 @@ import math
 import torch
 from PIL import Image
 
-
 class Preprocessor(Dataset):
     def __init__(self, dataset, root=None, transform=None, mutual=False):
         super(Preprocessor, self).__init__()

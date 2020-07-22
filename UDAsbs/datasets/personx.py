@@ -18,8 +18,8 @@ class personX(BaseImageDataset):
         super(personX, self).__init__()
         self.dataset_dir = osp.join(root, self.dataset_dir)
 
-        self.train_dir = osp.join(self.dataset_dir, 'challenge_datasets/personX/personX_spgan/image_train/')
-        print("using the spgan data personX_spgan")
+        self.train_dir = osp.join(self.dataset_dir, 'challenge_datasets/personX/resultA/')
+        print("using the spgan data resultA")
         self.query_dir = osp.join(self.dataset_dir, 'challenge_datasets/target_validation/image_query/')
         self.gallery_dir = osp.join(self.dataset_dir, 'challenge_datasets/target_validation/image_gallery/')
 

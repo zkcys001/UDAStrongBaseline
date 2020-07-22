@@ -1,6 +1,21 @@
 #!/usr/bin/env python2/python3
 # -*- coding: utf-8 -*-
-
+"""
+Source: https://github.com/zhunzhong07/person-re-ranking
+Created on Mon Jun 26 14:46:56 2017
+@author: luohao
+Modified by Yixiao Ge, 2020-3-14.
+CVPR2017 paper:Zhong Z, Zheng L, Cao D, et al. Re-ranking Person Re-identification with k-reciprocal Encoding[J]. 2017.
+url:http://openaccess.thecvf.com/content_cvpr_2017/papers/Zhong_Re-Ranking_Person_Re-Identification_CVPR_2017_paper.pdf
+Matlab version: https://github.com/zhunzhong07/person-re-ranking
+API
+q_g_dist: query-gallery distance matrix, numpy array, shape [num_query, num_gallery]
+q_q_dist: query-query distance matrix, numpy array, shape [num_query, num_query]
+g_g_dist: gallery-gallery distance matrix, numpy array, shape [num_gallery, num_gallery]
+k1, k2, lambda_value: parameters, the original paper is (k1=20, k2=6, lambda_value=0.3)
+Returns:
+  final_dist: re-ranked distance, numpy array, shape [num_query, num_gallery]
+"""
 from __future__ import absolute_import
 from __future__ import print_function
 from __future__ import division
