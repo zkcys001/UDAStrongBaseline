@@ -39,7 +39,8 @@ repository will be released upon the paper published.
 | [strong_baseline](https://github.com/open-mmlab/OpenUnReID/) | ResNet50 | imagenet | 60.4 | 75.9 | 86.2 | 89.8 | ~3h |
 | [sbs](https://github.com/JDAI-CV/fast-reid) | ResNet50 | Market1501 | 66.7 | 80.0 | 89.2 | 92.2  | ~3h |
 | [sbs + target instance memory bank](https://github.com/JDAI-CV/fast-reid) | ResNet50 | Market1501 | 68.7 | 81.0 | - | - | ~3h |
-| [sbs + target instance memory bank + source center memory bank](https://github.com/JDAI-CV/fast-reid) | ResNet50 | DukeMTMC | 69.7 | 82.0 | - | - | ~3h |
+| [sbs + target instance memory bank + source center memory bank](https://github.com/JDAI-CV/fast-reid) | ResNet50 | DukeMTMC | 70.7 | 83.0 | - | - | ~3h |
+| [sbs + target instance memory bank + source center memory bank + KL](https://github.com/JDAI-CV/fast-reid) | ResNet50 | DukeMTMC | 72.4 | 84.3 | - | - | ~3h |
 | [MLT] NIPS'2020 submission| ResNet50 | Market1501 | 71.2 |83.9| 91.5| 93.2| ~ |
 
 ## Requirements
