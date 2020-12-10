@@ -110,7 +110,7 @@ Some parts of `UDAstrongbaseline` are from [MMT](https://github.com/yxgeee/MMT)
 and [fastreid](https://github.com/JDAI-CV/fast-reid). We would like to thank for these projects, 
 and we will update our method .
 
-#Citation
+## Citation
 If you use the baseline in your research or wish to refer to the baseline results, please use the following BibTeX entry.
 
 ```BibTeX
