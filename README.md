@@ -113,10 +113,11 @@ and we will update our method .
 #Citation
 If you use the baseline in your research or wish to refer to the baseline results, please use the following BibTeX entry.
 
-
+```BibTeX
 @article{zheng2021,
   title={Exploiting Sample Uncertainty for Domain Adaptive Person Re-Identification},
   author={Kecheng Zheng, Cuiling Lan, Wenjun Zeng, Zhizheng Zhang, Zheng-jun Zha},
   journal={AAAI},
   year={2021}
 }
+```
