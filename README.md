@@ -1,5 +1,7 @@
 # UDAStrongBaseline
 Open-source stronger baseline for unsupervised or domain adaptive object re-ID.
+We will udpate the strong baseline and group-aware label transfer method in domain adaptive person re-identifacation.
+
 ## Introduction
 
 *Our method only adopts the clustering algorithm and ReID baseline model with the moving average model.
@@ -28,6 +30,7 @@ repository will be released upon the paper published.
 | [SpCL](https://github.com/open-mmlab/OpenUnReID/) NIPS'2020 submission| ResNet50 | imagenet | 78.2 | 90.5 | 96.6 | 97.8 | ~3h |
 | [strong_baseline](https://github.com/open-mmlab/OpenUnReID/) | ResNet50 | imagenet | 75.6 | 90.9 | 96.6 | 97.8 | ~3h | 
 | [Our stronger_baseline](https://github.com/JDAI-CV/fast-reid) | ResNet50 | DukeMTMC | 78.0 | 91.0 | 96.4 | 97.7 | ~3h |
+| [Our stronger_baseline + memory bank] | ResNet50 | DukeMTMC | 80.0 | 92.0 | 96.4 | 97.7 | ~3h |
 | [MLT] NIPS'2020 submission| ResNet50 | DukeMTMC | 81.5| 92.8| 96.8| 97.9 | ~ |
 
 #### Market-1501 -> DukeMTMC-reID
@@ -40,6 +43,7 @@ repository will be released upon the paper published.
 | [SpCL](https://github.com/open-mmlab/OpenUnReID/) NIPS'2020 submission | ResNet50 | imagenet | 70.4 | 83.8 | 91.2 | 93.4 | ~3h |
 | [strong_baseline](https://github.com/open-mmlab/OpenUnReID/) | ResNet50 | imagenet | 60.4 | 75.9 | 86.2 | 89.8 | ~3h |
 | [Our stronger_baseline](https://github.com/JDAI-CV/fast-reid) | ResNet50 | Market1501 | 66.7 | 80.0 | 89.2 | 92.2  | ~3h |
+| [Our stronger_baseline + memory bank](https://github.com/JDAI-CV/fast-reid) | ResNet50 | Market1501 | 68.9 | 81.3 | 89.2 | 92.2  | ~3h |
 | [MLT] NIPS'2020 submission| ResNet50 | Market1501 | 71.2 |83.9| 91.5| 93.2| ~ |
 
 ## Requirements
@@ -105,3 +109,14 @@ sh scripts/dbscan_baseline_duke2market.sh
 Some parts of `UDAstrongbaseline` are from [MMT](https://github.com/yxgeee/MMT) 
 and [fastreid](https://github.com/JDAI-CV/fast-reid). We would like to thank for these projects, 
 and we will update our method .
+
+#Citation
+If you use the baseline in your research or wish to refer to the baseline results, please use the following BibTeX entry.
+
+
+@article{zheng2021,
+  title={Exploiting Sample Uncertainty for Domain Adaptive Person Re-Identification},
+  author={Kecheng Zheng, Cuiling Lan, Wenjun Zeng, Zhizheng Zhang, Zheng-jun Zha},
+  journal={AAAI},
+  year={2021}
+}
