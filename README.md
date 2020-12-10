@@ -111,7 +111,7 @@ and [fastreid](https://github.com/JDAI-CV/fast-reid). We would like to thank for
 and we will update our method .
 
 ## Citation
-If you use the baseline in your research or wish to refer to the baseline results, please use the following BibTeX entry.
+If you find this code useful for your research, please use the following BibTeX entry.
 
 ```BibTeX
 @article{zheng2021,
