@@ -11,7 +11,6 @@ from sklearn.cluster import DBSCAN
 
 import torch
 from torch import nn
-from torch.nn import Parameter
 from torch.backends import cudnn
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
@@ -19,7 +18,7 @@ import torch.nn.functional as F
 #
 # from mmt.utils.rerank import compute_jaccard_dist
 
-from UDAsbs import datasets
+from UDAsbs import datasets, sinkhornknopp as sk
 from UDAsbs import models
 from UDAsbs.trainers import DbscanBaseTrainer
 from UDAsbs.evaluators import Evaluator, extract_features
@@ -30,20 +29,24 @@ from UDAsbs.utils.data.preprocessor import Preprocessor
 from UDAsbs.utils.logging import Logger
 from UDAsbs.utils.serialization import load_checkpoint, save_checkpoint#, copy_state_dict
 
+from UDAsbs.models.memory_bank import onlinememory
 from UDAsbs.utils.faiss_rerank import compute_jaccard_distance
 # import ipdb
 
+from UDAsbs.models.dsbn import convert_dsbn
+from torch.nn import Parameter
 
 start_epoch = best_mAP = 0
 
-def get_data(name, data_dir, l=1):
+def get_data(name, data_dir, l=1, shuffle=False):
     root = osp.join(data_dir)
 
     dataset = datasets.create(name, root, l)
 
     label_dict = {}
     for i, item_l in enumerate(dataset.train):
-        # dataset.train[i]=(item_l[0],0,item_l[2])
+        if shuffle:
+            dataset.train[i]=(item_l[0],0,item_l[2])
         if item_l[1] in label_dict:
             label_dict[item_l[1]].append(i)
         else:
@@ -51,11 +54,10 @@ def get_data(name, data_dir, l=1):
 
     return dataset, label_dict
 
-normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
+
 def get_train_loader(dataset, height, width, choice_c, batch_size, workers,
                      num_instances, iters, trainset=None):
-
-
+    normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
     train_transformer = T.Compose([
         T.Resize((height, width), interpolation=3),
         T.RandomHorizontalFlip(p=0.5),
@@ -79,11 +81,11 @@ def get_train_loader(dataset, height, width, choice_c, batch_size, workers,
                    batch_size=batch_size, num_workers=0, sampler=sampler,
                    shuffle=not rmgs_flag, pin_memory=True, drop_last=True), length=iters)
 
-
     return train_loader
 
 
 def get_test_loader(dataset, height, width, batch_size, workers, testset=None):
+    normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],std=[0.229, 0.224, 0.225])
 
     test_transformer = T.Compose([
         T.Resize((height, width), interpolation=3),
@@ -100,7 +102,6 @@ def get_test_loader(dataset, height, width, batch_size, workers, testset=None):
         shuffle=False, pin_memory=True)
 
     return test_loader
-
 
 
 
@@ -133,13 +134,16 @@ def create_model(args, ncs, wopre=False):
 
     model_1_ema = models.create(args.arch, num_features=args.features, dropout=args.dropout,
                                 num_classes=ncs)
+    if not wopre:
 
-    initial_weights = load_checkpoint(args.init_1)
-    copy_state_dict(initial_weights['state_dict'], model_1)
-    copy_state_dict(initial_weights['state_dict'], model_1_ema)
-    print('load pretrain model:{}'.format(args.init_1))
+        initial_weights = load_checkpoint(args.init_1)
+        copy_state_dict(initial_weights['state_dict'], model_1)
+        copy_state_dict(initial_weights['state_dict'], model_1_ema)
+        print('load pretrain model:{}'.format(args.init_1))
 
-
+    # adopt domain-specific BN
+    convert_dsbn(model_1)
+    convert_dsbn(model_1_ema)
     model_1.cuda()
     model_1_ema.cuda()
     model_1 = nn.DataParallel(model_1)
@@ -148,7 +152,7 @@ def create_model(args, ncs, wopre=False):
     for i, cl in enumerate(ncs):
         exec('model_1_ema.module.classifier{}_{}.weight.data.copy_(model_1.module.classifier{}_{}.weight.data)'.format(i,cl,i,cl))
 
-    return model_1, None, model_1_ema, None  # model_1, model_2, model_1_ema, model_2_ema
+    return model_1, None, model_1_ema, None
 
 def main():
     args = parser.parse_args()
@@ -162,12 +166,72 @@ def main():
     main_worker(args)
 
 
+class Optimizer:
+    def __init__(self, target_label, m, dis_gt, t_loader,N, hc=3, ncl=None,  n_epochs=200,
+                 weight_decay=1e-5, ckpt_dir='/',fc_len=3500):
+        self.num_epochs = n_epochs
+        self.momentum = 0.9
+        self.weight_decay = weight_decay
+        self.checkpoint_dir = ckpt_dir
+        self.N=N
+        self.resume = True
+        self.checkpoint_dir = None
+        self.writer = None
+        # model stuff
+        self.hc = len(ncl)#10
+        self.K = ncl#3000
+        self.K_c =[fc_len for _ in range(len(ncl))]
+        self.model = m
+        self.dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        self.L = [torch.LongTensor(target_label[i]).to(self.dev) for i in range(len(self.K))]
+        self.nmodel_gpus = 4#len()
+        self.pseudo_loader = t_loader#torch.utils.data.DataLoader(t_loader,batch_size=256)
+        # can also be DataLoader with less aug.
+        self.train_loader = t_loader
+        self.lamb = 25#args.lamb # the parameter lambda in the SK algorithm
+        self.cpu=True
+        self.dis_gt=dis_gt
+        dtype_='f64'
+        if dtype_ == 'f32':
+            self.dtype = torch.float32 if not self.cpu else np.float32
+        else:
+            self.dtype = torch.float64 if not self.cpu else np.float64
+
+        self.outs = self.K
+        # activations of previous to last layer to be saved if using multiple heads.
+        self.presize =  2048#4096 #
+
+    def optimize_labels(self):
+        if self.cpu:
+            sk.cpu_sk(self)
+        else:
+            sk.gpu_sk(self)
+
+        # save Label-assignments: optional
+        # torch.save(self.L, os.path.join(self.checkpoint_dir, 'L', str(niter) + '_L.gz'))
+
+        # free memory
+        data = 0
+        self.PS = 0
+
+        return self.L
 
 import collections
 
 def func(x, a, b, c):
     return a * np.exp(-b * x) + c
 
+def write_sta_im(train_loader):
+    label2num=collections.defaultdict(int)
+    save_label=[]
+    for x in train_loader:
+        label2num[x[1]]+=1
+        save_label.append(x[1])
+    labels=sorted(label2num.items(),key=lambda item:item[1])[::-1]
+    num = [j for i, j in labels]
+    distribution = np.array(num)/len(train_loader)
+
+    return num,save_label
 def print_cluster_acc(label_dict,target_label_tmp):
     num_correct = 0
     for pid in label_dict:
@@ -176,6 +240,21 @@ def print_cluster_acc(label_dict,target_label_tmp):
         num_correct += (target_label_tmp[pid_index] == pred_label).astype(np.float32).sum()
     cluster_accuracy = num_correct / len(target_label_tmp)
     print(f'cluster accucary: {cluster_accuracy:.3f}')
+
+def kmeans_cluster(f):
+    pass
+
+class uncer(object):
+    def __init__(self):
+        self.sm = torch.nn.Softmax(dim=1)
+        self.log_sm = torch.nn.LogSoftmax(dim=1)
+        # self.cross_batch=CrossBatchMemory()
+        self.kl_distance = nn.KLDivLoss(reduction='none')
+    def kl_cal(self,pred1,pred1_ema):
+        variance = torch.sum(self.kl_distance(self.log_sm(pred1),
+                                              self.sm(pred1_ema.detach())), dim=1)
+        exp_variance = torch.exp(-variance)
+        return exp_variance
 
 
 def main_worker(args):
@@ -189,69 +268,90 @@ def main_worker(args):
     # Create data loaders
     iters = args.iters if (args.iters > 0) else None
     ncs = [int(x) for x in args.ncs.split(',')]
-    # ncs_dbscan=ncs.copy()
-    dataset_target, label_dict = get_data(args.dataset_target, args.data_dir, len(ncs))
-    dataset_source, _ = get_data(args.dataset_source, args.data_dir, len(ncs))
 
+    dataset_target, label_dict = get_data(args.dataset_target, args.data_dir, len(ncs),True)
     test_loader_target = get_test_loader(dataset_target, args.height, args.width, args.batch_size, args.workers)
-
-
     tar_cluster_loader = get_test_loader(dataset_target, args.height, args.width, args.batch_size, args.workers,
                                          testset=dataset_target.train)
 
 
+    dataset_source, _ = get_data(args.dataset_source, args.data_dir, len(ncs))
+    sour_cluster_loader = get_test_loader(dataset_source, args.height, args.width, args.batch_size, args.workers,
+                                          testset=dataset_source.train)
+    train_loader_source = get_train_loader(dataset_source, args.height, args.width, 0, args.batch_size, args.workers,
+                                           args.num_instances, args.iters, dataset_source.train)
+
+
     fc_len = 3500
     model_1, _, model_1_ema, _ = create_model(args, [fc_len for _ in range(len(ncs))])
-    print(model_1)
 
-
-    #target_label = np.load("target_label.npy")
     epoch = 0
     target_features_dict, _ = extract_features(model_1_ema, tar_cluster_loader, print_freq=100)
+    target_features = F.normalize(torch.stack(list(target_features_dict.values())), dim=1)
 
-    target_features =  torch.stack(list(target_features_dict.values()))#torch.cat([target_features[f[0]].unsqueeze(0) for f in dataset_target.train], 0)
-    target_features = F.normalize(target_features, dim=1)
     # Calculate distance
     print('==> Create pseudo labels for unlabeled target domain')
 
     rerank_dist = compute_jaccard_distance(target_features, k1=args.k1, k2=args.k2)
     del target_features
-    if (epoch == 0):
-        # DBSCAN cluster
-        eps = 0.6  # 0.6
-        print('Clustering criterion: eps: {:.3f}'.format(eps))
-        cluster = DBSCAN(eps=eps, min_samples=4, metric='precomputed', n_jobs=-1)
+
+    # DBSCAN cluster
+    eps = 0.6  # 0.6
+    print('Clustering criterion: eps: {:.3f}'.format(eps))
+    cluster = DBSCAN(eps=eps, min_samples=4, metric='precomputed', n_jobs=-1)
 
     # select & cluster images as training set of this epochs
     pseudo_labels = cluster.fit_predict(rerank_dist)
 
-    num_ids = len(set(pseudo_labels)) - (1 if -1 in pseudo_labels else 0)
-
-    p1=[]
-
+    # num_ids = len(set(pseudo_labels)) - (1 if -1 in pseudo_labels else 0)
+    plabel=[]
     new_dataset=[]
     for i, (item, label) in enumerate(zip(dataset_target.train, pseudo_labels)):
-        if label == -1:continue
-        p1.append(label)
+        if label == -1:
+            continue
+        plabel.append(label)
         new_dataset.append((item[0], label, item[-1]))
-    target_label = [p1]
-    ncs = [len(set(p1)) + 1]
 
-    print('new class are {}, length of new dataset is {}'.format(ncs,len(new_dataset)))
+    target_label = [plabel]
+    ncs = [len(set(plabel)) + 1]
+    print('new class are {}, length of new dataset is {}'.format(ncs, len(new_dataset)))
+
+
+    # Initialize source-domain class centroids
+    print("==> Initialize source-domain class centroids in the hybrid memory")
+    source_features, _ = extract_features(model_1, sour_cluster_loader, print_freq=50)
+    sour_fea_dict = collections.defaultdict(list)
+    print("==> Ending source-domain class centroids in the hybrid memory")
+    for f, pid, _ in sorted(dataset_source.train):
+        sour_fea_dict[pid].append(source_features[f].unsqueeze(0))
+    source_centers = [torch.cat(sour_fea_dict[pid], 0).mean(0) for pid in sorted(sour_fea_dict.keys())]
+    source_centers = torch.stack(source_centers, 0)
+    source_centers = F.normalize(source_centers, dim=1)
+    del sour_fea_dict, source_features, sour_cluster_loader
 
     # Evaluator
     evaluator_1 = Evaluator(model_1)
     evaluator_1_ema = Evaluator(model_1_ema)
 
-    # evaluator_1.evaluate(test_loader_target, dataset_target.query, dataset_target.gallery,
-    #                      cmc_flag=True)
-    # evaluator_1_ema.evaluate(test_loader_target, dataset_target.query, dataset_target.gallery,
-    #                      cmc_flag=True)
     clusters = [args.num_clusters] * args.epochs# TODO: dropout clusters
 
+    source_classes = dataset_source.num_train_pids
+    k_memory=8192
+    contrast = onlinememory(2048, len(new_dataset),sour_numclass=source_classes,K=k_memory+source_classes,
+                             index2label=target_label, choice_c=args.choice_c, T=0.07,
+                             use_softmax=True).cuda()
+    contrast.index_memory = torch.cat((torch.arange(source_classes), -1*torch.ones(k_memory).long()), dim=0).cuda()
+    contrast.memory = torch.cat((source_centers, torch.rand(k_memory, 2048)), dim=0).cuda()
 
+    skin=False
+    if skin:
+        tar_selflabel_loader = get_test_loader(dataset_target, args.height, args.width, args.batch_size, args.workers,testset=new_dataset)
+    else:
+        tar_selflabel_loader=None
+    o = Optimizer(target_label, dis_gt=None, m=model_1, ncl=ncs,
+                  t_loader=tar_selflabel_loader, N=len(new_dataset),fc_len=fc_len)
 
-
+    uncertainty=collections.defaultdict(list)
     print("Training begining~~~~~~!!!!!!!!!")
     for epoch in range(len(clusters)):
 
@@ -261,42 +361,46 @@ def main_worker(args):
 
             target_features = torch.stack(list(target_features_dict.values()))  # torch.cat([target_features[f[0]].unsqueeze(0) for f in dataset_target.train], 0)
             target_features = F.normalize(target_features, dim=1)
-            # Calculate distance
+
             print('==> Create pseudo labels for unlabeled target domain with')
             rerank_dist = compute_jaccard_distance(target_features, k1=args.k1, k2=args.k2)
 
             # select & cluster images as training set of this epochs
             pseudo_labels = cluster.fit_predict(rerank_dist)
             num_ids = len(set(pseudo_labels)) - (1 if -1 in pseudo_labels else 0)
-
-            p1 = []
+            plabel = []
 
             new_dataset = []
 
             for i, (item, label) in enumerate(zip(dataset_target.train, pseudo_labels)):
                 if label == -1:
                     continue
-                p1.append(label)
+                plabel.append(label)
                 new_dataset.append((item[0], label, item[-1]))
-            target_label = [p1]
-            ncs = [len(set(p1)) + 1]
-
-            print('new class are {}, length of new dataset is {}'.format(ncs, len(new_dataset)))
 
 
-            obj = collections.Counter(pseudo_labels)
-            print("The number of label is {}".format(obj))
 
-        target_label = [target_label[0]]
+            target_label = [plabel]
+            ncs = [len(set(plabel)) + 1]
 
-        # change pseudo labels
+
+            tar_selflabel_loader = get_test_loader(dataset_target, args.height, args.width, args.batch_size, args.workers,
+                                                 testset=new_dataset)
+            o = Optimizer(target_label, dis_gt=None, m=model_1, ncl=ncs,
+                          t_loader=tar_selflabel_loader, N=len(new_dataset),fc_len=fc_len)
+
+
+
+        target_label_o = o.L
+        target_label = [list(np.asarray(target_label_o[0].data.cpu())+source_classes)]
+        contrast.index2label = [[i for i in range(source_classes)] + target_label[0]]
+
         for i in range(len(new_dataset)):
             new_dataset[i] = list(new_dataset[i])
             for j in range(len(ncs)):
                 new_dataset[i][j+1] = int(target_label[j][i])
             new_dataset[i] = tuple(new_dataset[i])
 
-        # print(nc,"============"+str(iters_))
         cc=args.choice_c#(args.choice_c+1)%len(ncs)
         train_loader_target = get_train_loader(dataset_target, args.height, args.width, cc,
                                                args.batch_size, args.workers, args.num_instances, iters_, new_dataset)
@@ -314,37 +418,24 @@ def main_worker(args):
                 print(key)
                 continue
             params += [{"params": [value], "lr": args.lr*flag, "weight_decay": args.weight_decay}]
-        # for key, value in model_2.named_parameters():
-        #     if not value.requires_grad:
-        #         continue
-        #     params += [{"params": [value], "lr": args.lr, "weight_decay": args.weight_decay}]
 
         optimizer = torch.optim.Adam(params)
 
         # Trainer
-        trainer = DbscanBaseTrainer(model_1, model_1_ema,
-                             num_cluster=ncs, c_name=ncs,alpha=args.alpha, fc_len=fc_len)
+        trainer = DbscanBaseTrainer(model_1, model_1_ema, contrast, None,None,
+                             num_cluster=ncs, c_name=ncs,alpha=args.alpha, fc_len=fc_len,
+                                            source_classes=source_classes, uncer_mode=args.uncer_mode)
 
 
         train_loader_target.new_epoch()
-        # index2label = dict([(i, j) for i, j in enumerate(np.asarray(target_label[0]))])
-        # index2label1= dict([(i, j) for i, j in enumerate(np.asarray(target_label[1]))])
-        # index2label2 = dict([(i, j) for i, j in enumerate(np.asarray(target_label[2]))])
+        train_loader_source.new_epoch()
 
 
-        trainer.train(epoch, train_loader_target, optimizer, args.choice_c,
-                      ce_soft_weight=args.soft_ce_weight, tri_soft_weight=args.soft_tri_weight,
-                      print_freq=args.print_freq, train_iters=iters_)
+        trainer.train(epoch, train_loader_target, train_loader_source, optimizer, args.choice_c,
+                                    lambda_tri=args.lambda_tri, lambda_ct=args.lambda_ct, lambda_reg=args.lambda_reg,
+                                    print_freq=args.print_freq, train_iters=iters_,uncertainty_d=uncertainty)
 
-        # if epoch>20:
-        # o.optimize_labels()
 
-        # ecn.L = o.L
-
-        # if nc ==yhua[-1]:
-        #     while nc ==yhua[-1]:
-        #         target_label_o = o.optimize_labels()
-        #         yhua= yhua[:-1]
 
         def save_model(model_ema, is_best, best_mAP, mid):
             save_checkpoint({
@@ -357,8 +448,9 @@ def main_worker(args):
         elif epoch==50:
             args.eval_step=1
         if ((epoch + 1) % args.eval_step == 0 or (epoch == args.epochs - 1)):
-            mAP_1 = evaluator_1.evaluate(test_loader_target, dataset_target.query, dataset_target.gallery,
-                                             cmc_flag=False)
+            mAP_1 = 0#evaluator_1.evaluate(test_loader_target, dataset_target.query, dataset_target.gallery,
+                     #          cmc_flag=False)
+
 
             mAP_2 = evaluator_1_ema.evaluate(test_loader_target, dataset_target.query, dataset_target.gallery,
                                              cmc_flag=False)
@@ -374,7 +466,6 @@ def main_worker(args):
     checkpoint = load_checkpoint(osp.join(args.logs_dir, 'model_best.pth.tar'))
     model_1.load_state_dict(checkpoint['state_dict'])
     evaluator_1.evaluate(test_loader_target, dataset_target.query, dataset_target.gallery, cmc_flag=True)
-
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser(description="MMT Training")
@@ -405,7 +496,7 @@ if __name__ == '__main__':
                              "each identity has num_instances instances, "
                              "default: 0 (NOT USE)")
     # model
-    parser.add_argument('-a', '--arch', type=str, default='resnet50',
+    parser.add_argument('-a', '--arch', type=str, default='resnet50_multi',
                         choices=models.names())
     parser.add_argument('--features', type=int, default=0)
     parser.add_argument('--dropout', type=float, default=0)
@@ -435,14 +526,20 @@ if __name__ == '__main__':
 
     parser.add_argument('--seed', type=int, default=1)
     parser.add_argument('--print-freq', type=int, default=100)
-    parser.add_argument('--eval-step', type=int, default=1)
+    parser.add_argument('--eval-step', type=int, default=5)
     parser.add_argument('--n-jobs', type=int, default=8)
     # path
     working_dir = osp.dirname(osp.abspath(__file__))
     parser.add_argument('--data-dir', type=str, metavar='PATH',
                         default=osp.join(working_dir, 'data'))
     parser.add_argument('--logs-dir', type=str, metavar='PATH',
-                        default=osp.join(working_dir, 'logs/d2m_baseline/resnet50_sbs_gem_memory_ins1005_spbn_sour_debug'))
+                        default=osp.join(working_dir, 'logs/d2m_baseline/tmp'))
+
+    parser.add_argument('--lambda-tri', type=float, default=1.0)
+    parser.add_argument('--lambda-reg', type=float, default=1.0)
+    parser.add_argument('--lambda-ct', type=float, default=1.0)
+    parser.add_argument('--uncer-mode', type=float, default=0)#0 mean 1 max 2 min
+
     print("======mmt_train_dbscan_self-labeling=======")
 
 
