@@ -53,7 +53,8 @@ repository will be released upon the paper published.
 ```shell
 git https://github.com/zkcys001/UDAStrongBaseline/
 cd UDAStrongBaseline
-
+python setup.py install
+pip install faiss-gpu==1.6.3
 ```
 
 ### Prepare Datasets
