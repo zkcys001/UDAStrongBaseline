@@ -130,9 +130,9 @@ class PreTrainer(object):
 
             s_inputs, targets = self._parse_data(source_inputs)
             t_inputs, _ = self._parse_data(target_inputs)
-            s_features, s_cls_out,_,_ = self.model(s_inputs,training=True)
+            s_features, s_cls_out,_ = self.model(s_inputs,training=True)
             # target samples: only forward
-            _,_,_,_= self.model(t_inputs,training=True)
+            _,_,_= self.model(t_inputs,training=True)
 
             # backward main #
             loss_ce, loss_tr, prec1 = self._forward(s_features, s_cls_out[0], targets)
