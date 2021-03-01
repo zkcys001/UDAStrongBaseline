@@ -115,10 +115,16 @@ and we will update our method .
 If you find this code useful for your research, please use the following BibTeX entry.
 
 ```BibTeX
-@article{zheng2021,
+@article{zheng2020exploiting,
   title={Exploiting Sample Uncertainty for Domain Adaptive Person Re-Identification},
-  author={Kecheng Zheng, Cuiling Lan, Wenjun Zeng, Zhizheng Zhang, Zheng-jun Zha},
+  author={Zheng, Kecheng and Lan, Cuiling and Zeng, Wenjun and Zhang, Zhizheng and Zha, Zheng-Jun},
   journal={AAAI},
+  year={2021}
+}
+@article{zheng2021labeltransfer,
+  title={Group-aware Label Transfer for Domain Adaptive Person Re-identification},
+  author={Zheng, Kecheng and Liu, Wu and Mei, Tao and Luo, Jiebo and Zha, Zheng-Jun},
+  journal={CVPR},
   year={2021}
 }
 ```
