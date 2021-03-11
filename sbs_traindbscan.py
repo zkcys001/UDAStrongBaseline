@@ -78,7 +78,7 @@ def get_train_loader(dataset, height, width, choice_c, batch_size, workers,
     train_loader = IterLoader(
         DataLoader(Preprocessor(train_set, root=dataset.images_dir,
                                 transform=train_transformer, mutual=True),
-                   batch_size=batch_size, num_workers=0, sampler=sampler,
+                   batch_size=batch_size, num_workers=workers, sampler=sampler,
                    shuffle=not rmgs_flag, pin_memory=True, drop_last=True), length=iters)
 
     return train_loader
