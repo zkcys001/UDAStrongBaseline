@@ -31,7 +31,6 @@ repository will be released upon the paper published.
 | [strong_baseline](https://github.com/open-mmlab/OpenUnReID/) | ResNet50 | imagenet | 75.6 | 90.9 | 96.6 | 97.8 | ~3h | 
 | [Our stronger_baseline](https://github.com/JDAI-CV/fast-reid) | ResNet50 | DukeMTMC | 77.4 | 91.0 | 96.4 | 97.7 | ~3h |
 | [Our stronger_baseline + memory bank] | ResNet50 | DukeMTMC | 79.4 | 92.5 | 97.5 | 98.5 | ~5h/60epoches |
-| [MLT] NIPS'2020 submission| ResNet50 | DukeMTMC | 81.5| 92.8| 96.8| 97.9 | ~ |
 
 #### Market-1501 -> DukeMTMC-reID
 
@@ -44,7 +43,6 @@ repository will be released upon the paper published.
 | [strong_baseline](https://github.com/open-mmlab/OpenUnReID/) | ResNet50 | imagenet | 60.4 | 75.9 | 86.2 | 89.8 | ~3h |
 | [Our stronger_baseline](https://github.com/JDAI-CV/fast-reid) | ResNet50 | Market1501 | 66.7 | 80.0 | 89.2 | 92.2  |  ~3h |
 | [Our stronger_baseline + memory bank](https://github.com/JDAI-CV/fast-reid) | ResNet50 | Market1501 | 69.7 | 82.5 | 90.5 | 92.9  |  ~5h/60epoches |
-| [MLT] NIPS'2020 submission| ResNet50 | Market1501 | 71.2 |83.9| 91.5| 93.2| ~ |
 
 ## Requirements
 
