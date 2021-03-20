@@ -183,13 +183,14 @@ class PreTrainer(object):
         return loss_ce, loss_tr, prec
 
 class DbscanBaseTrainer_multi(object):
-    def __init__(self, model_1, model_1_ema, contrast, contrast_center, contrast_center_sour, num_cluster=None,
-                 c_name=None, alpha=0.999, fc_len=3000,source_classes=702,uncer_mode=0):
+    def __init__(self, model_1, model_1_ema, contrast, num_cluster=None,
+                 c_name=None, alpha=0.999,source_classes=702,uncer_mode=0):
+
         super(DbscanBaseTrainer_multi, self).__init__()
         self.model_1 = model_1
 
         self.num_cluster = num_cluster
-        self.c_name = [fc_len for _ in range(len(num_cluster))]
+        self.c_name = num_cluster#[fc_len for _ in range(len(num_cluster))]
         self.model_1_ema = model_1_ema
         self.uncer_mode=uncer_mode
         self.alpha = alpha
@@ -207,7 +208,7 @@ class DbscanBaseTrainer_multi(object):
         self.kl_distance = nn.KLDivLoss(reduction='none')
 
     def train(self, epoch, data_loader_target, data_loader_source, optimizer, choice_c, lambda_tri=1.0
-              , lambda_ct=1.0, lambda_reg=0.06, print_freq=100, train_iters=200, uncertainty_d=None):
+              , lambda_ct=1.0, lambda_reg=0.06, print_freq=100, train_iters=200):
 
 
         self.model_1.train()
@@ -262,96 +263,35 @@ class DbscanBaseTrainer_multi(object):
             _, f_out_3_t1_ema = self.derange_spbn(f_out_3_ema)
             # _, sim_out_t1_ema = self.derange_spbn(sim_out_ema)
 
-            # loss_ce_1 = self.criterion_ce(p_out_t1, items[2])
-            # exp_variance = self.softmax_kl_loss(p_out_t1, p_out_t1)
-            # loss_ce_1 = torch.mean(loss_ce_1 * exp_variance) + torch.mean(exp_variance_3)
-            # loss_ce_1_3 = self.criterion_ce(p_out_3_t1, items[2])
-            # exp_variance_3=self.softmax_kl_loss(p_out_3_t1,p_out_t1)
-            # loss_ce_1_3 = torch.mean(loss_ce_1_3 * exp_variance_3) + torch.mean(exp_variance_3)
-
-
-
             with torch.no_grad():
                 queue = self.contrast.memory[:self.contrast.sour_numclass, :].clone()
                 ml_sour = torch.matmul(f_out_t1, queue.transpose(1, 0).detach())
                 ml_sour_ema = torch.matmul(f_out_t1_ema, queue.transpose(1, 0).detach())
 
             ########## [memory center]-level uncertainty
-            loss_ce_1, loss_reg, exp_variance = self.update_variance(items[2], p_out_t1, p_out_3_t1, p_out_t1_ema, p_out_3_t1_ema, ml_sour,ml_sour_ema,f_out_t1,f_out_t1_ema)
+            loss_ce_1, loss_reg, exp_variance = self.update_variance(items[2], p_out_t1, p_out_3_t1, p_out_t1_ema,
+                                                                     p_out_3_t1_ema, ml_sour,ml_sour_ema,f_out_t1,f_out_t1_ema)
             # loss_ce_1_3, exp_variance_3 = self.update_variance(items[2], p_out_3_t1, p_out_t1, p_out_t1_ema,
             #                                                    ml_sour, ml_sour_ema)
             loss_ce_1 = loss_ce_1#(loss_ce_1+loss_ce_1_3)/2.0
-            # loss_ce_1 = (self.criterion_ce(p_out_t1, items[2]) +self.criterion_ce(p_out_3_t1, items[2])) / 2.0
-
-            exp_variance_np=exp_variance.data.cpu().numpy()
-            for i_num,i_un in enumerate(index_t.data.cpu().numpy()):
-                uncertainty_d[i_un].append(exp_variance_np[i_num])
 
             # exp_variance=torch.tensor(0)
             loss_kl = exp_variance.mean()
 
             contra_loss_instance, contra_loss_center, _, _ = \
-                self.contrast(memory_f_t1, f_out_s1, index_t,f_out_t1, f_out_t1_ema,  items_source[2], exp_variance, epoch=epoch)
-
+                self.contrast(memory_f_t1, f_out_s1, index_t,f_out_t1, f_out_t1_ema,  items_source[2], uncer=exp_variance, epoch=epoch)
 
             ########## feature-level uncertainty
             # loss_ce_1, exp_variance = self.update_variance_self(items[2], p_out_t1, f_out_t1, f_out_t1_ema )
 
-            ########## normal ce loss
+            ########## vallia ce loss
             loss_ce_1_norm = torch.tensor(0)#(self.criterion_ce(p_out_t1, items[2]) +self.criterion_ce(p_out_3_t1, items[2])) / 2.0
-
-            # contra_loss_instance, contra_loss_center = torch.tensor(0), torch.tensor(0)
 
             ########## uncertainty hard triplet loss
             loss_tri_unc = self.criterion_tri_uncer(f_out_t1, f_out_t1_ema, items[2], exp_variance)
 
-            #loss_tri_1 = self.criterion_tri(f_out_t1, f_out_t1, items[2])
-
-            # if epoch > 20:
-            #     loss_ce_1  ,exp_variance   = self.update_variance(items[2], p_out_t1, p_out_3_t1, p_out_t1_ema)
-            #     loss_ce_1_3,exp_variance_3 = self.update_variance(items[2], p_out_3_t1, p_out_t1, p_out_t1_ema)
-            #     loss_ce_1 = (loss_ce_1+loss_ce_1_3)/2.0
-            # else:
-            #     loss_ce_1 = (self.criterion_ce(p_out_t1, items[2]) +
-            #                  self.criterion_ce(p_out_3_t1, items[2])) / 2.0
-
-
-            # uncer = True
-            # if uncer:
-            #     OnlyLayer3=False
-            #     if OnlyLayer3:
-            #         if epoch > 20:
-            #             loss_ce_1, _ = self.update_variance_self(items[2], p_out_t1, p_out_3_t1)
-            #         else:
-            #             loss_ce_1 = self.criterion_ce(p_out_t1, items[2])
-            #     else:
-            #         SourUncer=False
-            #         if SourUncer:
-            #             if epoch > 20:
-            #                 loss_ce_1, exp_variance = \
-            #                     self.update_variance_sour(items[2], p_out_t1, ml_sour, ml_sour_ema, p_out_t1_ema)
-            #             else:
-            #                 loss_ce_1 = (self.criterion_ce(p_out_t1, items[2]) +
-            #                              self.criterion_ce(p_out_3_t1, items[2])) / 2.0
-            #         else:
-            #             if epoch > -1:
-            #                 loss_ce_1   ,exp_variance   = self.update_variance(items[2], p_out_t1, p_out_3_t1, p_out_t1_ema)
-            #                 loss_ce_1_3 ,exp_variance_3 = self.update_variance(items[2], p_out_3_t1, p_out_t1, p_out_t1_ema)
-            #                 loss_ce_1 = (loss_ce_1+loss_ce_1_3)/2.0
-            #
-            #             else:
-            #                 variance = (torch.sum(self.kl_distance(self.log_sm(p_out_t1), self.sm(p_out_3_t1)), dim=1) + \
-            #                             torch.sum(self.kl_distance(self.log_sm(p_out_t1), self.sm(p_out_t1_ema)), dim=1)) / 2.0
-            #                 exp_variance = torch.exp(-variance.detach())
-            #                 loss_ce_1 = (self.criterion_ce(p_out_t1, items[2]) +
-            #                              self.criterion_ce(p_out_3_t1, items[2])) / 2.0
-            # else:
-            #
-            #     loss_ce_1 =self.criterion_ce(p_out_t1, items[2])
-
-
             if epoch % 6 != 0:
-                loss = loss_ce_1 + lambda_tri*loss_tri_unc + lambda_reg*loss_reg + lambda_ct*contra_loss_instance  + contra_loss_center
+                loss = loss_ce_1 + lambda_tri*loss_tri_unc + lambda_reg*loss_reg + lambda_ct*contra_loss_instance + contra_loss_center
             else:
                 loss = loss_ce_1 + lambda_tri*loss_tri_unc + lambda_reg*loss_reg  + contra_loss_center
 
@@ -382,7 +322,7 @@ class DbscanBaseTrainer_multi(object):
                       'Data {:.3f} ({:.3f})\t'
                       'Loss_ce  {:.3f} / {:.3f}\t'
                       'loss_kldiv {:.3f}\t'
-                      'Loss_tri {:.3f} / Loss_tri_soft {:.3f} \t'
+                      'Loss_tri {:.3f} / losses_tri_unc {:.3f} \t'
                       'contra_loss_center {:.3f}\t'
                       'contra_loss {:.3f}\t'
                       'Prec {:.2%} / {:.2%}\t'
@@ -392,9 +332,9 @@ class DbscanBaseTrainer_multi(object):
                               losses_ce[0].avg, losses_ce[1].avg, loss_kldiv.avg,
                               losses_tri[0].avg, losses_tri_unc.avg, loss_s.avg, contra_loss.avg,
                               precisions[0].avg, precisions[1].avg))
-        return uncertainty_d
+
     def update_variance(self, labels, pred1, pred2, pred_ema, pred2_ema, ml_sour, ml_sour_ema,f_out_t1,f_out_t1_ema):
-                            #items[2], p_out_t1, p_out_3_t1, p_out_t1_ema, ml_sour,ml_sour_ema,f_out_t1,f_out_t1_ema)
+                       #(items[2], p_out_t1, p_out_3_t1, p_out_t1_ema,p_out_3_t1_ema, ml_sour, ml_sour_ema, f_out_t1, f_out_t1_ema)
         loss = self.criterion_ce(pred1, labels)
         loss_3layer = self.criterion_ce(pred2, labels)
 
@@ -403,7 +343,9 @@ class DbscanBaseTrainer_multi(object):
             variance = torch.sum(self.kl_distance(self.log_sm(ml_sour), self.sm(ml_sour_ema.detach())), dim=1)
         else:
             variance = torch.sum(self.kl_distance(self.log_sm(torch.cat((pred1, ml_sour), 1)),
-                                                  self.sm(torch.cat((pred2_ema, ml_sour_ema), 1).detach())), dim=1)
+                                                  self.sm(torch.cat((pred2_ema, ml_sour_ema), 1).detach())), dim=1)# +
+                        # torch.sum(self.kl_distance(self.log_sm(torch.cat((pred1, ml_sour), 1)),
+                        #                           self.sm(torch.cat((pred_ema, ml_sour_ema), 1).detach())), dim=1))/2.0
 
         exp_variance = torch.exp(-variance)
         loss = torch.mean(loss * exp_variance) + torch.mean(loss_3layer* exp_variance)
@@ -473,13 +415,13 @@ class DbscanBaseTrainer_multi(object):
         return [inputs_1, inputs_2] + pids + [index]
 
 class DbscanBaseTrainer(object):
-    def __init__(self, model_1, model_1_ema, contrast, contrast_center, contrast_center_sour, num_cluster=None,
-                 c_name=None, alpha=0.999, fc_len=3000, source_classes=702, uncer_mode=None):
+    def __init__(self, model_1, model_1_ema, contrast, num_cluster=None,
+                 c_name=None, alpha=0.999, source_classes=702, uncer_mode=None):
         super(DbscanBaseTrainer, self).__init__()
         self.model_1 = model_1
 
         self.num_cluster = num_cluster
-        self.c_name = [fc_len for _ in range(len(num_cluster))]
+        self.c_name = num_cluster#[fc_len for _ in range(len(num_cluster))]
         self.model_1_ema = model_1_ema
 
         self.alpha = alpha
@@ -548,16 +490,16 @@ class DbscanBaseTrainer(object):
 
             loss_ce_1=self.criterion_ce(p_out_t1, items[2])
 
-            contra_loss_instance, contra_loss_center, ml_sour, ml_sour_ema = \
-                self.contrast(memory_f_t1, f_out_s1, index_t, f_out_t1, f_out_t1_ema,  items_source[2], epoch=epoch)
+            contra_loss_instance, contra_loss_center, ml_sour, ml_sour_ema = torch.tensor(0),torch.tensor(0),torch.tensor(0),torch.tensor(0)
+                # self.contrast(memory_f_t1, f_out_s1, index_t, f_out_t1, f_out_t1_ema, items_source[2], epoch=epoch)
 
-            loss_kl =loss_tri_unc= torch.tensor(0)#self.softmax_kl_loss(ml_x_t1, ml_sour)
+            loss_kl = loss_tri_unc= torch.tensor(0)
 
 
             if epoch % 6 != 0:
-                loss = loss_ce_1 + loss_tri_1 + contra_loss_center + contra_loss_instance
+                loss = loss_ce_1 + loss_tri_1 #+ contra_loss_center + contra_loss_instance
             else:
-                loss = loss_ce_1 + loss_tri_1 + contra_loss_center
+                loss = loss_ce_1 + loss_tri_1 #+ contra_loss_center
 
             optimizer.zero_grad()
             loss.backward()

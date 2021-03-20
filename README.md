@@ -30,7 +30,8 @@ repository will be released upon the paper published.
 | [SpCL](https://github.com/open-mmlab/OpenUnReID/) NIPS'2020 submission| ResNet50 | imagenet | 78.2 | 90.5 | 96.6 | 97.8 | ~3h |
 | [strong_baseline](https://github.com/open-mmlab/OpenUnReID/) | ResNet50 | imagenet | 75.6 | 90.9 | 96.6 | 97.8 | ~3h | 
 | [Our stronger_baseline](https://github.com/JDAI-CV/fast-reid) | ResNet50 | DukeMTMC | 77.4 | 91.0 | 96.4 | 97.7 | ~3h |
-| [Our stronger_baseline + memory bank] | ResNet50 | DukeMTMC | 79.4 | 92.5 | 97.5 | 98.5 | ~5h/60epoches |
+| [Our stronger_baseline + GLT (Kmeans)] | ResNet50 | DukeMTMC | 79.5 | 92.7 | 96.7 | 97.9 | ~35h |
+| [Our stronger_baseline + uncertainty (DBSCAN)] | ResNet50 | DukeMTMC | 80.5 | 93.0 | 97.3 | 98.2 | ~5h |
 
 #### Market-1501 -> DukeMTMC-reID
 
@@ -42,7 +43,6 @@ repository will be released upon the paper published.
 | [SpCL](https://github.com/open-mmlab/OpenUnReID/) NIPS'2020 submission | ResNet50 | imagenet | 70.4 | 83.8 | 91.2 | 93.4 | ~3h |
 | [strong_baseline](https://github.com/open-mmlab/OpenUnReID/) | ResNet50 | imagenet | 60.4 | 75.9 | 86.2 | 89.8 | ~3h |
 | [Our stronger_baseline](https://github.com/JDAI-CV/fast-reid) | ResNet50 | Market1501 | 66.7 | 80.0 | 89.2 | 92.2  |  ~3h |
-| [Our stronger_baseline + memory bank](https://github.com/JDAI-CV/fast-reid) | ResNet50 | Market1501 | 69.7 | 82.5 | 90.5 | 92.9  |  ~5h/60epoches |
 
 ## Requirements
 
@@ -51,23 +51,21 @@ repository will be released upon the paper published.
 ```shell
 git https://github.com/zkcys001/UDAStrongBaseline/
 cd UDAStrongBaseline
-python setup.py install
+pip install -r requirements
 pip install faiss-gpu==1.6.3
 ```
 
 ### Prepare Datasets
 
-```shell
-```
 Download the person datasets [DukeMTMC-reID](https://arxiv.org/abs/1609.01775), [Market-1501](https://drive.google.com/file/d/0B8-rUzbwVRk0c054eEozWG9COHM/view), [MSMT17](https://arxiv.org/abs/1711.08565), Then unzip them under the directory like
 ```
 ./data
 ├── dukemtmc
-│   └── DukeMTMC-reID
+│  └── DukeMTMC-reID
 ├── market1501
-│   └── Market-1501-v15.09.15
+│  └── Market-1501-v15.09.15
 ├── msmt17
-    └── MSMT17_V1
+   └── MSMT17_V1
 
 ```
 
@@ -83,25 +81,48 @@ ImageNet-pretrained models for **ResNet-50** will be automatically downloaded in
 
 We utilize 4 GPUs for training. **Note that**
 
+### Stronger Baseline:
 
-### Stage I: Pretrain Model on Source Domain
-To train the model(s) in the source domain, run this command:
+#### Stage I: Pretrain Model on Source Domain
+To train the baseline in the source domain, run this command:
 ```shell
 sh scripts/pretrain_market1501.sh
-sh scripts/pretrain_dukemtmc.sh
 ```
 
+#### Stage II: End-to-end training with clustering
 
-### Stage II: End-to-end training with clustering
-
-Utilizeing DBSCAN clustering algorithm
+Utilizeing the baseline or uncertainty model(s) based on DBSCAN clustering algorithm:
 
 ```shell
 sh scripts/dbscan_baseline_market2duke.sh
-sh scripts/dbscan_baseline_duke2market.sh
 ```
 
+### GLT (group-aware label transfer, CVPR 2021):
 
+#### Stage I: Pretrain Model on Source Domain
+To train the GLT model in the source domain, run this command:
+```shell
+sh scripts/pretrain_market1501.sh
+```
+
+Utilizeing the GLT model based on K-means clustering algorithm:
+```shell
+sh scripts/GLT_kmeans_duke2market.sh
+```
+
+### Uncertainty (AAAI 2021):
+
+#### Stage I: Pretrain Model on Source Domain
+
+To train the uncertainty model in the source domain, run this command:
+```shell
+sh pretrain_uncertainty_market1501.sh
+```
+
+Utilizeing the GLT model based on DBSCAN clustering algorithm:
+```shell
+sh scripts/dbscan_uncertainty_duke2market.sh
+```
 
 ## Acknowledgement
 
@@ -119,6 +140,7 @@ If you find this code useful for your research, please use the following BibTeX 
   journal={AAAI},
   year={2021}
 }
+
 @article{zheng2021labeltransfer,
   title={Group-aware Label Transfer for Domain Adaptive Person Re-identification},
   author={Zheng, Kecheng and Liu, Wu and Mei, Tao and Luo, Jiebo and Zha, Zheng-Jun},

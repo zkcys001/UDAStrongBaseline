@@ -15,12 +15,10 @@ from torch.backends import cudnn
 from torch.utils.data import DataLoader
 import torch.nn.functional as F
 # from torch.nn import init
-#
-# from mmt.utils.rerank import compute_jaccard_dist
 
 from UDAsbs import datasets, sinkhornknopp as sk
 from UDAsbs import models
-from UDAsbs.trainers import DbscanBaseTrainer
+from UDAsbs.trainers import DbscanBaseTrainer, DbscanBaseTrainer_multi
 from UDAsbs.evaluators import Evaluator, extract_features
 from UDAsbs.utils.data import IterLoader
 from UDAsbs.utils.data import transforms as T
@@ -103,8 +101,6 @@ def get_test_loader(dataset, height, width, batch_size, workers, testset=None):
 
     return test_loader
 
-
-
 def copy_state_dict(state_dict, model, strip=None):
     tgt_state = model.state_dict()
     copied_names = set()
@@ -168,7 +164,7 @@ def main():
 
 class Optimizer:
     def __init__(self, target_label, m, dis_gt, t_loader,N, hc=3, ncl=None,  n_epochs=200,
-                 weight_decay=1e-5, ckpt_dir='/',fc_len=3500):
+                 weight_decay=1e-5, ckpt_dir='/'):
         self.num_epochs = n_epochs
         self.momentum = 0.9
         self.weight_decay = weight_decay
@@ -180,7 +176,7 @@ class Optimizer:
         # model stuff
         self.hc = len(ncl)#10
         self.K = ncl#3000
-        self.K_c =[fc_len for _ in range(len(ncl))]
+        self.K_c =ncl#[fc_len for _ in range(len(ncl))]
         self.model = m
         self.dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         self.L = [torch.LongTensor(target_label[i]).to(self.dev) for i in range(len(self.K))]
@@ -241,9 +237,6 @@ def print_cluster_acc(label_dict,target_label_tmp):
     cluster_accuracy = num_correct / len(target_label_tmp)
     print(f'cluster accucary: {cluster_accuracy:.3f}')
 
-def kmeans_cluster(f):
-    pass
-
 class uncer(object):
     def __init__(self):
         self.sm = torch.nn.Softmax(dim=1)
@@ -269,7 +262,7 @@ def main_worker(args):
     iters = args.iters if (args.iters > 0) else None
     ncs = [int(x) for x in args.ncs.split(',')]
 
-    dataset_target, label_dict = get_data(args.dataset_target, args.data_dir, len(ncs),True)
+    dataset_target, label_dict = get_data(args.dataset_target, args.data_dir, len(ncs))
     test_loader_target = get_test_loader(dataset_target, args.height, args.width, args.batch_size, args.workers)
     tar_cluster_loader = get_test_loader(dataset_target, args.height, args.width, args.batch_size, args.workers,
                                          testset=dataset_target.train)
@@ -282,8 +275,7 @@ def main_worker(args):
                                            args.num_instances, args.iters, dataset_source.train)
 
 
-    fc_len = 3500
-    model_1, _, model_1_ema, _ = create_model(args, [fc_len for _ in range(len(ncs))])
+    model_1, _, model_1_ema, _ = create_model(args, [3500 for _ in range(len(ncs))])
 
     epoch = 0
     target_features_dict, _ = extract_features(model_1_ema, tar_cluster_loader, print_freq=100)
@@ -313,7 +305,7 @@ def main_worker(args):
         new_dataset.append((item[0], label, item[-1]))
 
     target_label = [plabel]
-    ncs = [len(set(plabel)) + 1]
+    ncs = [len(set(plabel))+1]
     print('new class are {}, length of new dataset is {}'.format(ncs, len(new_dataset)))
 
 
@@ -349,9 +341,8 @@ def main_worker(args):
     else:
         tar_selflabel_loader=None
     o = Optimizer(target_label, dis_gt=None, m=model_1, ncl=ncs,
-                  t_loader=tar_selflabel_loader, N=len(new_dataset),fc_len=fc_len)
+                  t_loader=tar_selflabel_loader, N=len(new_dataset))
 
-    uncertainty=collections.defaultdict(list)
     print("Training begining~~~~~~!!!!!!!!!")
     for epoch in range(len(clusters)):
 
@@ -367,33 +358,38 @@ def main_worker(args):
 
             # select & cluster images as training set of this epochs
             pseudo_labels = cluster.fit_predict(rerank_dist)
-            num_ids = len(set(pseudo_labels)) - (1 if -1 in pseudo_labels else 0)
+            # num_ids = len(set(pseudo_labels)) - (1 if -1 in pseudo_labels else 0)
             plabel = []
 
             new_dataset = []
 
             for i, (item, label) in enumerate(zip(dataset_target.train, pseudo_labels)):
-                if label == -1:
-                    continue
+                if label == -1:continue
                 plabel.append(label)
                 new_dataset.append((item[0], label, item[-1]))
 
-
-
             target_label = [plabel]
-            ncs = [len(set(plabel)) + 1]
-
+            ncs = [len(set(plabel))+1]
 
             tar_selflabel_loader = get_test_loader(dataset_target, args.height, args.width, args.batch_size, args.workers,
                                                  testset=new_dataset)
             o = Optimizer(target_label, dis_gt=None, m=model_1, ncl=ncs,
-                          t_loader=tar_selflabel_loader, N=len(new_dataset),fc_len=fc_len)
-
-
-
+                          t_loader=tar_selflabel_loader, N=len(new_dataset))
+            contrast.index_memory = torch.cat((torch.arange(source_classes), -1 * torch.ones(k_memory).long()),
+                                              dim=0).cuda()
+            model_1.module.classifier0_3500 = nn.Linear(2048, ncs[0], bias=False).cuda()
+            model_1_ema.module.classifier0_3500 = nn.Linear(2048, ncs[0], bias=False).cuda()
+            if args.method=='uncertainty':
+                model_1.module.classifier3_0_3500 = nn.Linear(1024, ncs[0], bias=False).cuda()
+                model_1_ema.module.classifier3_0_3500 = nn.Linear(1024, ncs[0], bias=False).cuda()
+            print(model_1.module.classifier0_3500)
+            # if epoch !=0:
+            #     model_1.module.classifier0_3500.weight.data.copy_(torch.from_numpy(normalize(target_centers,axis=1)).float().cuda())
+            #     model_1_ema.module.classifier0_3500.weight.data.copy_(torch.from_numpy(normalize(target_centers,axis=1)).float().cuda())
         target_label_o = o.L
-        target_label = [list(np.asarray(target_label_o[0].data.cpu())+source_classes)]
-        contrast.index2label = [[i for i in range(source_classes)] + target_label[0]]
+        target_label = [np.asarray(target_label_o[0].data.cpu())]
+        target_label_mb = [list(np.asarray(target_label_o[0].data.cpu())+source_classes)]
+        contrast.index2label = [[i for i in range(source_classes)] + target_label_mb[0]]
 
         for i in range(len(new_dataset)):
             new_dataset[i] = list(new_dataset[i])
@@ -401,7 +397,7 @@ def main_worker(args):
                 new_dataset[i][j+1] = int(target_label[j][i])
             new_dataset[i] = tuple(new_dataset[i])
 
-        cc=args.choice_c#(args.choice_c+1)%len(ncs)
+        cc = args.choice_c#(args.choice_c+1)%len(ncs)
         train_loader_target = get_train_loader(dataset_target, args.height, args.width, cc,
                                                args.batch_size, args.workers, args.num_instances, iters_, new_dataset)
 
@@ -422,8 +418,14 @@ def main_worker(args):
         optimizer = torch.optim.Adam(params)
 
         # Trainer
-        trainer = DbscanBaseTrainer(model_1, model_1_ema, contrast, None,None,
-                             num_cluster=ncs, c_name=ncs,alpha=args.alpha, fc_len=fc_len,
+
+        if args.method == 'uncertainty':
+            metaTrainer = DbscanBaseTrainer_multi
+        else:
+            metaTrainer = DbscanBaseTrainer
+
+        trainer = metaTrainer(model_1, model_1_ema, contrast,
+                             num_cluster=ncs, c_name=ncs,alpha=args.alpha,
                                             source_classes=source_classes, uncer_mode=args.uncer_mode)
 
 
@@ -433,7 +435,7 @@ def main_worker(args):
 
         trainer.train(epoch, train_loader_target, train_loader_source, optimizer, args.choice_c,
                                     lambda_tri=args.lambda_tri, lambda_ct=args.lambda_ct, lambda_reg=args.lambda_reg,
-                                    print_freq=args.print_freq, train_iters=iters_,uncertainty_d=uncertainty)
+                                    print_freq=args.print_freq, train_iters=iters)
 
 
 
@@ -476,6 +478,8 @@ if __name__ == '__main__':
                         choices=datasets.names())
     parser.add_argument('-b', '--batch-size', type=int, default=64)
     parser.add_argument('-j', '--workers', type=int, default=8)
+    parser.add_argument('-m', '--method', type=str, default='uncertainty',
+                        choices=['baseline','uncertainty','GLT'])
     parser.add_argument('--choice_c', type=int, default=0)
     parser.add_argument('--num-clusters', type=int, default=700)
     parser.add_argument('--ncs', type=str, default='60')

@@ -1,10 +1,12 @@
 from __future__ import absolute_import
 
 from .resnet import *
-
+from .resnet_multi import resnet50_multi,resnet50_multi_sbs
 __factory = {
 
-    'resnet50_sbs': resnet50
+    'resnet50_sbs': resnet50,
+    'resnet50_multi': resnet50_multi,
+    'resnet50_multi_sbs': resnet50_multi_sbs
 }
 
 

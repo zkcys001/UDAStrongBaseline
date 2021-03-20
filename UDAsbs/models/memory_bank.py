@@ -96,9 +96,22 @@ class onlinememory(nn.Module):
                                     dtype=torch.long).cuda()
         pseudo_label = pseudo_label.unsqueeze(1).expand(batchSize, self.queueSize)
 
-        memory_label = torch.tensor(
-            [self.index2label[self.choice_c][i.item()] if i.item() != -1 else -1 for i in self.index_memory],
-            dtype=torch.long).cuda()
+        memory_label_list=[]
+        for i in self.index_memory:
+            try:
+                if i.item() == -1:
+                    memory_label_list.append(-1)
+                else:
+                    memory_label_list.append(self.index2label[self.choice_c][i.item()])
+            except:
+                print("error index{}".format(i.item()))
+
+        memory_label = torch.tensor(memory_label_list,dtype=torch.long).cuda()
+
+
+        # memory_label = torch.tensor(
+        #     [self.index2label[self.choice_c][i.item()] if i.item() != -1 else -1 for i in self.index_memory],
+        #     dtype=torch.long).cuda()
         memory_label = memory_label.unsqueeze(0).expand(batchSize, self.queueSize)
 
         is_pos = pseudo_label.eq(memory_label).float()
@@ -112,7 +125,7 @@ class onlinememory(nn.Module):
         s_p = sim_mat * is_pos
         s_n = sim_mat * is_neg
 
-        if uncer:
+        if uncer is not None:
             exp_variance = (uncer.unsqueeze(1).expand(batchSize, self.queueSize) +self.uncer.clone().unsqueeze(0).expand(batchSize, self.queueSize)) / 2.0
         else:
             exp_variance=1
@@ -182,7 +195,7 @@ class onlinememory(nn.Module):
             out_ids = (out_ids + self.sour_numclass).long()
             self.memory.index_copy_(0, out_ids, q1)
             self.index_memory.index_copy_(0, out_ids, index + self.sour_numclass)
-            if uncer:
+            if uncer is not None:
                 self.uncer.index_copy_(0, out_ids, uncer)
             self.index = (self.index + batchSize) % (self.queueSize - self.sour_numclass)
             for x, y in zip(q2, sour_labels):
