@@ -110,7 +110,7 @@ Utilizeing the GLT model based on K-means clustering algorithm:
 sh scripts/GLT_kmeans_duke2market.sh
 ```
 
-### Uncertainty (AAAI 2021):
+### Uncertainty:
 
 #### Stage I: Pretrain Model on Source Domain
 
