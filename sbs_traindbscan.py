@@ -348,8 +348,7 @@ def main_worker(args):
 
         iters_ = 300 if epoch  % 1== 0 else iters
         if epoch % 6 == 0 and epoch != 0:
-            target_features_dict, _ = extract_features(model_1_ema, tar_cluster_loader, print_freq=50)
-
+            target_features_dict, _ = extract_features(model_1_ema, tar_cluster_loader, print_freq=100)
             target_features = torch.stack(list(target_features_dict.values()))  # torch.cat([target_features[f[0]].unsqueeze(0) for f in dataset_target.train], 0)
             target_features = F.normalize(target_features, dim=1)
 
@@ -371,8 +370,11 @@ def main_worker(args):
             target_label = [plabel]
             ncs = [len(set(plabel))+1]
 
-            tar_selflabel_loader = get_test_loader(dataset_target, args.height, args.width, args.batch_size, args.workers,
-                                                 testset=new_dataset)
+            if skin:
+                tar_selflabel_loader = get_test_loader(dataset_target, args.height, args.width, args.batch_size,
+                                                       args.workers, testset=new_dataset)
+            else:
+                tar_selflabel_loader = None
             o = Optimizer(target_label, dis_gt=None, m=model_1, ncl=ncs,
                           t_loader=tar_selflabel_loader, N=len(new_dataset))
             contrast.index_memory = torch.cat((torch.arange(source_classes), -1 * torch.ones(k_memory).long()),
@@ -424,7 +426,7 @@ def main_worker(args):
         else:
             metaTrainer = DbscanBaseTrainer
 
-        trainer = metaTrainer(model_1, model_1_ema, contrast,
+        trainer = metaTrainer(model_1, model_1_ema, contrast, None,None,
                              num_cluster=ncs, c_name=ncs,alpha=args.alpha,
                                             source_classes=source_classes, uncer_mode=args.uncer_mode)
 

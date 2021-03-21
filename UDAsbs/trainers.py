@@ -183,7 +183,7 @@ class PreTrainer(object):
         return loss_ce, loss_tr, prec
 
 class DbscanBaseTrainer_multi(object):
-    def __init__(self, model_1, model_1_ema, contrast, num_cluster=None,
+    def __init__(self, model_1, model_1_ema, contrast, contrast_center, contrast_center_sour, num_cluster=None,
                  c_name=None, alpha=0.999,source_classes=702,uncer_mode=0):
 
         super(DbscanBaseTrainer_multi, self).__init__()
@@ -279,7 +279,7 @@ class DbscanBaseTrainer_multi(object):
             loss_kl = exp_variance.mean()
 
             contra_loss_instance, contra_loss_center, _, _ = \
-                self.contrast(memory_f_t1, f_out_s1, index_t,f_out_t1, f_out_t1_ema,  items_source[2], uncer=None, epoch=epoch)
+                self.contrast(memory_f_t1, f_out_s1, index_t, f_out_t1, f_out_t1_ema,  items_source[2], uncer=exp_variance, epoch=epoch)
 
             ########## feature-level uncertainty
             # loss_ce_1, exp_variance = self.update_variance_self(items[2], p_out_t1, f_out_t1, f_out_t1_ema )
@@ -342,10 +342,10 @@ class DbscanBaseTrainer_multi(object):
         if only_sour:
             variance = torch.sum(self.kl_distance(self.log_sm(ml_sour), self.sm(ml_sour_ema.detach())), dim=1)
         else:
-            variance = torch.sum(self.kl_distance(self.log_sm(torch.cat((pred1, ml_sour), 1)),
-                                                  self.sm(torch.cat((pred2_ema, ml_sour_ema), 1).detach())), dim=1)# +
-                        # torch.sum(self.kl_distance(self.log_sm(torch.cat((pred1, ml_sour), 1)),
-                        #                           self.sm(torch.cat((pred_ema, ml_sour_ema), 1).detach())), dim=1))/2.0
+            variance = (torch.sum(self.kl_distance(self.log_sm(torch.cat((pred1, ml_sour), 1)),
+                                                  self.sm(torch.cat((pred2_ema, ml_sour_ema), 1).detach())), dim=1) +
+                        torch.sum(self.kl_distance(self.log_sm(torch.cat((pred1, ml_sour), 1)),
+                                                  self.sm(torch.cat((pred_ema, ml_sour_ema), 1).detach())), dim=1))/2.0
 
         exp_variance = torch.exp(-variance)
         loss = torch.mean(loss * exp_variance) + torch.mean(loss_3layer* exp_variance)
@@ -415,7 +415,7 @@ class DbscanBaseTrainer_multi(object):
         return [inputs_1, inputs_2] + pids + [index]
 
 class DbscanBaseTrainer(object):
-    def __init__(self, model_1, model_1_ema, contrast, num_cluster=None,
+    def __init__(self, model_1, model_1_ema, contrast, contrast_center, contrast_center_sour, num_cluster=None,
                  c_name=None, alpha=0.999, source_classes=702, uncer_mode=None):
         super(DbscanBaseTrainer, self).__init__()
         self.model_1 = model_1
@@ -493,7 +493,7 @@ class DbscanBaseTrainer(object):
             contra_loss_instance, contra_loss_center, ml_sour, ml_sour_ema = torch.tensor(0),torch.tensor(0),torch.tensor(0),torch.tensor(0)
                 # self.contrast(memory_f_t1, f_out_s1, index_t, f_out_t1, f_out_t1_ema, items_source[2], epoch=epoch)
 
-            loss_kl = loss_tri_unc= torch.tensor(0)
+            loss_kl = loss_tri_unc= torch.tensor(0)#self.softmax_kl_loss(ml_x_t1, ml_sour)
 
 
             if epoch % 6 != 0:

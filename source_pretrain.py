@@ -112,7 +112,7 @@ def main_worker(args):
                           num_classes=[num_classes])
     model.cuda()
     model = nn.DataParallel(model)
-
+    #print(model)
     # Load from checkpoint
     if args.resume:
         checkpoint = load_checkpoint(args.resume)
@@ -124,6 +124,7 @@ def main_worker(args):
 
     # Evaluator
     evaluator = Evaluator(model)
+    # args.evaluate=True
     if args.evaluate:
         print("Test on source domain:")
         evaluator.evaluate(test_loader_source, dataset_source.query, dataset_source.gallery, cmc_flag=True, rerank=args.rerank)
@@ -141,7 +142,8 @@ def main_worker(args):
                                      warmup_iters=args.warmup_step)
 
     # Trainer
-    trainer = PreTrainer_multi(model, num_classes, margin=args.margin) if 'multi' in args.arch else PreTrainer(model, num_classes, margin=args.margin)
+    trainer = PreTrainer_multi(model, num_classes, margin=args.margin) \
+        if 'multi' in args.arch else PreTrainer(model, num_classes, margin=args.margin)
 
     # Start training
     for epoch in range(start_epoch, args.epochs):
