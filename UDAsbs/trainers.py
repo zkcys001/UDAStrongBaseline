@@ -279,7 +279,7 @@ class DbscanBaseTrainer_multi(object):
             loss_kl = exp_variance.mean()
 
             contra_loss_instance, contra_loss_center, _, _ = \
-                self.contrast(memory_f_t1, f_out_s1, index_t,f_out_t1, f_out_t1_ema,  items_source[2], uncer=exp_variance, epoch=epoch)
+                self.contrast(memory_f_t1, f_out_s1, index_t,f_out_t1, f_out_t1_ema,  items_source[2], uncer=None, epoch=epoch)
 
             ########## feature-level uncertainty
             # loss_ce_1, exp_variance = self.update_variance_self(items[2], p_out_t1, f_out_t1, f_out_t1_ema )

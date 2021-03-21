@@ -30,7 +30,7 @@ repository will be released upon the paper published.
 | [SpCL](https://github.com/open-mmlab/OpenUnReID/) NIPS'2020 submission| ResNet50 | imagenet | 78.2 | 90.5 | 96.6 | 97.8 | ~3h |
 | [strong_baseline](https://github.com/open-mmlab/OpenUnReID/) | ResNet50 | imagenet | 75.6 | 90.9 | 96.6 | 97.8 | ~3h | 
 | [Our stronger_baseline](https://github.com/JDAI-CV/fast-reid) | ResNet50 | DukeMTMC | 77.4 | 91.0 | 96.4 | 97.7 | ~3h |
-| [Our stronger_baseline + GLT (Kmeans)] | ResNet50 | DukeMTMC | 79.5 | 92.7 | 96.7 | 97.9 | ~35h |
+| [Our stronger_baseline + GLT (Kmeans)] | ResNet50 | DukeMTMC | 79.5 | 92.7 | 96.9 | 98.0 | ~35h |
 | [Our stronger_baseline + uncertainty (DBSCAN)] | ResNet50 | DukeMTMC | 80.5 | 93.0 | 97.3 | 98.2 | ~5h |
 
 #### Market-1501 -> DukeMTMC-reID
