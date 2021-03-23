@@ -323,7 +323,7 @@ def main_worker(args):
 
     source_classes = dataset_source.num_train_pids
     k_memory=8192
-    contrast = onlinememory(2048, len(new_dataset),sour_numclass=source_classes,K=k_memory+source_classes,
+    contrast = onlinememory(2048, sour_numclass=source_classes,K=k_memory+source_classes,
                              index2label=target_label, choice_c=args.choice_c, T=0.07,
                              use_softmax=True).cuda()
     contrast.index_memory = torch.cat((torch.arange(source_classes), -1*torch.ones(k_memory).long()), dim=0).cuda()
@@ -334,7 +334,7 @@ def main_worker(args):
         tar_selflabel_loader = get_test_loader(dataset_target, args.height, args.width, args.batch_size, args.workers,testset=new_dataset)
     else:
         tar_selflabel_loader=None
-    o = Optimizer(target_label, dis_gt=None, m=model_1, ncl=ncs, t_loader=tar_selflabel_loader, N=len(new_dataset))
+    o = Optimizer(target_label, dis_gt=None, m=model_1_ema, ncl=ncs, t_loader=tar_selflabel_loader, N=len(new_dataset))
 
     print("Training begining~~~~~~!!!!!!!!!")
     for epoch in range(args.epochs):
@@ -401,8 +401,8 @@ def main_worker(args):
                 new_dataset[i][j+1] = int(target_label[j][i])
             new_dataset[i] = tuple(new_dataset[i])
 
-        cc = args.choice_c#(args.choice_c+1)%len(ncs)
-        train_loader_target = get_train_loader(dataset_target, args.height, args.width, cc,
+         #cc =(args.choice_c+1)%len(ncs)
+        train_loader_target = get_train_loader(dataset_target, args.height, args.width, args.choice_c,
                                                args.batch_size, args.workers, args.num_instances, iters_, new_dataset)
 
         # Optimizer

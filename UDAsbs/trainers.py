@@ -293,7 +293,7 @@ class DbscanBaseTrainer_multi(object):
             if epoch % 6 != 0:
                 loss = loss_ce_1 + lambda_tri*loss_tri_unc + lambda_reg*loss_reg + lambda_ct*contra_loss_instance + contra_loss_center
             else:
-                loss = loss_ce_1 + lambda_tri*loss_tri_unc + lambda_reg*loss_reg  + contra_loss_center
+                loss = loss_ce_1 + lambda_tri*loss_tri_unc + lambda_reg*loss_reg + contra_loss_center
 
             optimizer.zero_grad()
             loss.backward()
@@ -317,6 +317,9 @@ class DbscanBaseTrainer_multi(object):
             end = time.time()
 
             if (i + 1) % print_freq == 1:
+                # if precisions[0].avg<=0.15:
+                #     import ipdb
+                #     ipdb.set_trace()
                 print('Epoch: [{}][{}/{}]\t'
                       'Time {:.3f} ({:.3f})\t'
                       'Data {:.3f} ({:.3f})\t'
@@ -335,20 +338,24 @@ class DbscanBaseTrainer_multi(object):
 
     def update_variance(self, labels, pred1, pred2, pred_ema, pred2_ema, ml_sour, ml_sour_ema,f_out_t1,f_out_t1_ema):
                        #(items[2], p_out_t1, p_out_3_t1, p_out_t1_ema,p_out_3_t1_ema, ml_sour, ml_sour_ema, f_out_t1, f_out_t1_ema)
-        loss = self.criterion_ce(pred1, labels)
+        loss_4layer = self.criterion_ce(pred1, labels)
         loss_3layer = self.criterion_ce(pred2, labels)
 
         only_sour=False
         if only_sour:
             variance = torch.sum(self.kl_distance(self.log_sm(ml_sour), self.sm(ml_sour_ema.detach())), dim=1)
         else:
-            variance = (torch.sum(self.kl_distance(self.log_sm(torch.cat((pred1, ml_sour), 1)),
-                                                  self.sm(torch.cat((pred2_ema, ml_sour_ema), 1).detach())), dim=1) +
-                        torch.sum(self.kl_distance(self.log_sm(torch.cat((pred1, ml_sour), 1)),
-                                                  self.sm(torch.cat((pred_ema, ml_sour_ema), 1).detach())), dim=1))/2.0
+            variance = torch.sum(self.kl_distance(self.log_sm(torch.cat((pred1, ml_sour), 1)),
+                                                  self.sm(torch.cat((pred2_ema, ml_sour_ema), 1).detach())), dim=1)
+            # variance = torch.sum(self.kl_distance(self.log_sm(pred1),
+            #                                        self.sm(pred2_ema.detach())), dim=1)
+            # variance = (torch.sum(self.kl_distance(self.log_sm(torch.cat((pred1, ml_sour), 1)),
+            #                                       self.sm(torch.cat((pred2_ema, ml_sour_ema), 1).detach())), dim=1) +
+            #             torch.sum(self.kl_distance(self.log_sm(torch.cat((pred1, ml_sour), 1)),
+            #                                       self.sm(torch.cat((pred_ema, ml_sour_ema), 1).detach())), dim=1))/2.0
 
         exp_variance = torch.exp(-variance)
-        loss = torch.mean(loss * exp_variance) + torch.mean(loss_3layer* exp_variance)
+        loss = torch.mean(loss_4layer * exp_variance) + torch.mean(loss_3layer* exp_variance)
         loss_reg=torch.mean(variance)
 
         return loss,loss_reg,exp_variance
@@ -405,7 +412,8 @@ class DbscanBaseTrainer_multi(object):
             ema_param.data.mul_(alpha).add_(1 - alpha, param.data)
 
     def _parse_data(self, inputs):
-        # imgs_1, imgs_2, pids,...,pids2, index = inputs
+        # imgs_1, imgs_2, fname, pids,...,pids2, index = inputs
+
         inputs_1 = inputs[0].cuda()
         inputs_2 = inputs[1].cuda()
         pids = []

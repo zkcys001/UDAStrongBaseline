@@ -48,7 +48,7 @@ class DukeMTMC(BaseImageDataset):
             print("=> DukeMTMC-reID loaded")
             self.print_dataset_statistics(train, query, gallery)
 
-        self.train = train
+        self.train = sorted(train)
         self.query = query
         self.gallery = gallery
 

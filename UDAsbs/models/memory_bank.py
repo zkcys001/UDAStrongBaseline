@@ -46,10 +46,9 @@ def logsumexp(value, weight = 1, dim=None, keepdim=False):
 class onlinememory(nn.Module):
     """Fixed-size queue with momentum encoder"""
 
-    def __init__(self, inputSize, outputSize, sour_numclass, K, index2label, choice_c=1, T=0.07, use_softmax=False,
+    def __init__(self, inputSize, sour_numclass, K, index2label, choice_c=1, T=0.07, use_softmax=False,
                  cluster_num=0):
         super(onlinememory, self).__init__()
-        self.outputSize = outputSize
         self.inputSize = inputSize
         self.sour_numclass = sour_numclass
         self.queueSize = K
