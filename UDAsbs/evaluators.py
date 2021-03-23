@@ -35,6 +35,7 @@ def extract_features(model, data_loader, choice_c=0, adaibn=False, print_freq=10
             data_time.update(time.time() - end)
 
             outputs = extract_cnn_feature(model, imgs)
+
             for fname, output, pid in zip(fnames, outputs, pids):
                 features[fname] = output
                 labels[fname] = pid
@@ -155,7 +156,7 @@ class Evaluator(object):
 
     def evaluate(self, data_loader, query, gallery, metric=None, cmc_flag=False, rerank=False, pre_features=None):
         if (pre_features is None):
-            features, _ = extract_features(self.model, data_loader)
+            features, _,_ = extract_features(self.model, data_loader)
         else:
             features = pre_features
         distmat, query_features, gallery_features = pairwise_distance(features, query, gallery, metric=metric)

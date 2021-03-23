@@ -7,7 +7,7 @@ eps = 1e-7
 
 class NCECriterion(nn.Module):
     """
-    Eq. (12): L_{NCE}
+    Eq. (12): L_{memorybank}
     """
     def __init__(self, n_data):
         super(NCECriterion, self).__init__()
@@ -34,7 +34,7 @@ class NCECriterion(nn.Module):
 
 
 class NCESoftmaxLoss(nn.Module):
-    """Softmax cross-entropy loss (a.k.a., info-NCE loss in CPC paper)"""
+    """Softmax cross-entropy loss (a.k.a., info-memorybank loss in CPC paper)"""
     def __init__(self):
         super(NCESoftmaxLoss, self).__init__()
         self.criterion = nn.CrossEntropyLoss()

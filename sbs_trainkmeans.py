@@ -286,14 +286,14 @@ def main_worker(args):
                     print_cluster_acc(label_dict, target_label_tmp)
                     continue
 
-                km = KMeans(n_clusters=nc_i, random_state=args.seed, n_jobs=args.n_jobs).fit(moving_avg_features)
-                target_label_tmp = np.asarray(km.labels_)
-                cluster_centers = np.asarray(km.cluster_centers_)
+                # km = KMeans(n_clusters=nc_i, random_state=args.seed, n_jobs=args.n_jobs).fit(moving_avg_features)
+                # target_label_tmp = np.asarray(km.labels_)
+                # cluster_centers = np.asarray(km.cluster_centers_)
 
-                # cluster = faiss.Kmeans(2048, nc_i, niter=300, verbose=True, gpu=True)
-                # cluster.train(moving_avg_features)
-                # _, labels = cluster.index.search(moving_avg_features, 1)
-                # target_label_tmp = labels.reshape(-1)
+                cluster = faiss.Kmeans(2048, nc_i, niter=300, verbose=True, gpu=True)
+                cluster.train(moving_avg_features)
+                _, labels = cluster.index.search(moving_avg_features, 1)
+                target_label_tmp = labels.reshape(-1)
 
 
             target_label.append(target_label_tmp)
@@ -420,14 +420,12 @@ def main_worker(args):
         optimizer = torch.optim.Adam(params)
 
         # Trainer
-        trainer = DbscanBaseTrainer(model_1, model_1_ema, contrast, num_cluster=ncs, c_name=ncs,
-                                    alpha=args.alpha, source_classes=source_classes, uncer_mode=args.uncer_mode)
+        trainer = DbscanBaseTrainer(model_1, model_1_ema, contrast, num_cluster=ncs, alpha=args.alpha)
 
         train_loader_target.new_epoch()
         train_loader_source.new_epoch()
 
         trainer.train(epoch, train_loader_target, train_loader_source, optimizer, args.choice_c,
-                                    lambda_tri=args.lambda_tri, lambda_ct=args.lambda_ct, lambda_reg=args.lambda_reg,
                                     print_freq=args.print_freq, train_iters=iters_)
         o.optimize_labels()
 

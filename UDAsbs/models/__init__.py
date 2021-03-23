@@ -1,10 +1,15 @@
 from __future__ import absolute_import
 
 from .resnet import *
+# from .resnet_sbs import resnet50_sbs
 from .resnet_multi import resnet50_multi,resnet50_multi_sbs
 __factory = {
-
-    'resnet50_sbs': resnet50,
+    'resnet18': resnet18,
+    'resnet34': resnet34,
+    'resnet50': resnet50,
+    'resnet101': resnet101,
+    'resnet152': resnet152,
+    'resnet50_sbs': resnet50_sbs,
     'resnet50_multi': resnet50_multi,
     'resnet50_multi_sbs': resnet50_multi_sbs
 }
@@ -14,7 +19,7 @@ def names():
     return sorted(__factory.keys())
 
 
-def create(name, mb_h=2048, *args, **kwargs):
+def create(name, mb_h=2048, sour_class=751, *args, **kwargs):
     """
     Create a model instance.
 
@@ -47,4 +52,4 @@ def create(name, mb_h=2048, *args, **kwargs):
     """
     if name not in __factory:
         raise KeyError("Unknown model:", name)
-    return __factory[name](mb_h=mb_h,*args, **kwargs)
+    return __factory[name](mb_h=mb_h,sour_class=sour_class,*args, **kwargs)

@@ -12,7 +12,7 @@ from torch.utils.data import DataLoader
 
 from UDAsbs import datasets
 from UDAsbs import models
-from UDAsbs.trainers import PreTrainer,PreTrainer_multi
+from UDAsbs.trainers import PreTrainer, PreTrainer_multi
 from UDAsbs.evaluators import Evaluator
 from UDAsbs.utils.data import IterLoader
 from UDAsbs.utils.data import transforms as T
@@ -27,10 +27,11 @@ start_epoch = best_mAP = 0
 
 def get_data(name, data_dir, height, width, batch_size, workers, num_instances, iters=200):
     root = osp.join(data_dir)
-    normalizer = T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
+
     dataset = datasets.create(name, root)
 
-
+    normalizer = T.Normalize(mean=[0.485, 0.456, 0.406],
+                             std=[0.229, 0.224, 0.225])
 
     train_set = dataset.train
     num_classes = dataset.num_train_pids
@@ -112,14 +113,15 @@ def main_worker(args):
                           num_classes=[num_classes])
     model.cuda()
     model = nn.DataParallel(model)
-    #print(model)
+    print(model)
     # Load from checkpoint
     if args.resume:
         checkpoint = load_checkpoint(args.resume)
         copy_state_dict(checkpoint['state_dict'], model)
         start_epoch = checkpoint['epoch']
         best_mAP = checkpoint['best_mAP']
-        print("=> Start epoch {}  best mAP {:.1%}".format(start_epoch, best_mAP))
+        print("=> Start epoch {}  best mAP {:.1%}"
+              .format(start_epoch, best_mAP))
 
 
     # Evaluator
@@ -142,19 +144,17 @@ def main_worker(args):
                                      warmup_iters=args.warmup_step)
 
     # Trainer
-    trainer = PreTrainer_multi(model, num_classes, margin=args.margin) \
-        if 'multi' in args.arch else PreTrainer(model, num_classes, margin=args.margin)
-
+    trainer = PreTrainer(model, num_classes, margin=args.margin) if 'multi' not in args.arch else PreTrainer_multi(model, num_classes, margin=args.margin)
     # Start training
     for epoch in range(start_epoch, args.epochs):
+
         train_loader_source.new_epoch()
         train_loader_target.new_epoch()
 
         trainer.train(epoch, train_loader_source, train_loader_target, optimizer,
                     train_iters=len(train_loader_source), print_freq=args.print_freq)
-
         lr_scheduler.step()
-        if ((epoch+1)%args.eval_step==0 or (epoch==args.epochs-1)) or epoch==0:
+        if ((epoch+1)%args.eval_step==0 or (epoch==args.epochs-1)):
 
             _, mAP = evaluator.evaluate(test_loader_source, dataset_source.query,
                                         dataset_source.gallery, cmc_flag=True)

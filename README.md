@@ -82,7 +82,37 @@ ImageNet-pretrained models for **ResNet-50** will be automatically downloaded in
 
 We utilize 4 GPUs for training. **Note that**
 
-### Stronger Baseline:
+### 1. Uncertainty:
+
+#### Stage I: Pretrain Model on Source Domain
+
+To train the uncertainty model in the source domain, run this command:
+```shell
+sh pretrain_uncertainty_market1501.sh
+```
+#### Stage II: End-to-end training with clustering
+
+Utilizeing the GLT model based on DBSCAN clustering algorithm:
+```shell
+sh scripts/dbscan_uncertainty_duke2market.sh
+```
+
+
+### 2. GLT (group-aware label transfer, CVPR 2021):
+
+#### Stage I: Pretrain Model on Source Domain
+To train the GLT model in the source domain, run this command:
+```shell
+sh scripts/pretrain_market1501.sh
+```
+
+#### Stage II: End-to-end training with clustering
+Utilizeing the GLT model based on K-means clustering algorithm:
+```shell
+sh scripts/GLT_kmeans_duke2market.sh
+```
+
+### 3. Stronger Baseline:
 
 #### Stage I: Pretrain Model on Source Domain
 To train the baseline in the source domain, run this command:
@@ -98,32 +128,7 @@ Utilizeing the baseline or uncertainty model(s) based on DBSCAN clustering algor
 sh scripts/dbscan_baseline_market2duke.sh
 ```
 
-### GLT (group-aware label transfer, CVPR 2021):
 
-#### Stage I: Pretrain Model on Source Domain
-To train the GLT model in the source domain, run this command:
-```shell
-sh scripts/pretrain_market1501.sh
-```
-
-Utilizeing the GLT model based on K-means clustering algorithm:
-```shell
-sh scripts/GLT_kmeans_duke2market.sh
-```
-
-### Uncertainty:
-
-#### Stage I: Pretrain Model on Source Domain
-
-To train the uncertainty model in the source domain, run this command:
-```shell
-sh pretrain_uncertainty_market1501.sh
-```
-
-Utilizeing the GLT model based on DBSCAN clustering algorithm:
-```shell
-sh scripts/dbscan_uncertainty_duke2market.sh
-```
 
 ## Acknowledgement
 

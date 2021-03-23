@@ -10,6 +10,7 @@ def extract_cnn_feature(model, inputs, modules=None):
     inputs = to_torch(inputs).cuda()
     if modules is None:
         outputs = model(inputs)
+
         outputs = outputs.data.cpu()
         return outputs
     # Register forward hook for each module

@@ -14,7 +14,7 @@ from ..layers import (
 
 from .gem_pooling import GeneralizedMeanPoolingP
 
-__all__ = ['ResNet', 'resnet50_multi', 'resnet50_multi_sbs']
+__all__ = ['ResNet', 'resnet50_multi']
 
 
 class ResNet(nn.Module):
@@ -28,7 +28,7 @@ class ResNet(nn.Module):
 
 
     def __init__(self, depth, mb_h=2048, NL=False, pretrained=True, cut_at_pooling=False,
-                 num_features=0, norm=False, dropout=0, num_classes=None):
+                 num_features=0, norm=False, dropout=0, num_classes=None,sour_class=751):
         super(ResNet, self).__init__()
         self.pretrained = pretrained
         self.depth = depth
@@ -226,7 +226,7 @@ class ResNet(nn.Module):
         # prob_3 = [F.linear(F.normalize(bn_x3), F.normalize(self.weight3))]
         if training is False:
             bn_x = F.normalize(bn_x)
-            return bn_x#,prob
+            return bn_x
         return x, prob, mb_x, None, prob_3, x3
 
 
@@ -257,7 +257,8 @@ class ResNet(nn.Module):
         self.base[5].load_state_dict(resnet.layer3.state_dict())
         self.base[6].load_state_dict(resnet.layer4.state_dict())
 
-def resnet50_multi(mb_h,**kwargs):
-    return ResNet(50, mb_h=mb_h, **kwargs)
-def resnet50_multi_sbs(mb_h,**kwargs):
-    return ResNet(50, mb_h=mb_h, NL=True, **kwargs)
+def resnet50_multi(mb_h,sour_class,**kwargs):
+    return ResNet(50, mb_h=mb_h, sour_class=sour_class,**kwargs)
+
+def resnet50_multi_sbs(mb_h,sour_class,**kwargs):
+    return ResNet(50, mb_h=mb_h,sour_class=sour_class,NL=True, **kwargs)

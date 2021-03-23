@@ -109,10 +109,7 @@ def mean_ap(distmat, query_ids=None, gallery_ids=None,
         y_true = matches[i, valid]
         y_score = -distmat[i][indices[i]][valid]
         if not np.any(y_true): continue
-        try:
-            aps.append(average_precision_score(y_true, y_score))
-        except:
-            import ipdb;ipdb.set_trace()
+        aps.append(average_precision_score(y_true, y_score))
     if len(aps) == 0:
         raise RuntimeError("No valid query")
     return np.mean(aps)

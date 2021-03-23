@@ -5,11 +5,13 @@ import torch.nn.functional as F
 
 class CrossEntropyLabelSmooth(nn.Module):
 
-	def __init__(self, num_classes, epsilon=0.1):
+
+	def __init__(self, num_classes, epsilon=0.1, reduce=True):
 		super(CrossEntropyLabelSmooth, self).__init__()
 		self.num_classes = num_classes
 		self.epsilon = epsilon
 		self.logsoftmax = nn.LogSoftmax(dim=1).cuda()
+		self.reduce=reduce
 
 	def forward(self, inputs, targets):
 		"""
@@ -20,7 +22,10 @@ class CrossEntropyLabelSmooth(nn.Module):
 		log_probs = self.logsoftmax(inputs)
 		targets = torch.zeros_like(log_probs).scatter_(1, targets.unsqueeze(1), 1)
 		targets = (1 - self.epsilon) * targets + self.epsilon / self.num_classes
-		loss = (- targets * log_probs).mean(0).sum()
+		if self.reduce:
+			loss = (- targets * log_probs).mean(0).sum()
+		else:
+			loss = (- targets * log_probs)
 		return loss
 
 class SoftEntropy(nn.Module):
