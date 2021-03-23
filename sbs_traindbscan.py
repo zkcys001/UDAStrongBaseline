@@ -404,11 +404,11 @@ def main_worker(args):
 
             contrast.index_memory = torch.cat((torch.arange(source_classes), -1 * torch.ones(k_memory).long()),
                                               dim=0).cuda()
-            # model_1.module.classifier0_3500 = nn.Linear(2048, ncs[0], bias=False).cuda()
-            # model_1_ema.module.classifier0_3500 = nn.Linear(2048, ncs[0], bias=False).cuda()
-            # if args.method=='uncertainty':
-            #     model_1.module.classifier3_0_3500 = nn.Linear(1024, ncs[0], bias=False).cuda()
-            #     model_1_ema.module.classifier3_0_3500 = nn.Linear(1024, ncs[0], bias=False).cuda()
+            model_1.module.classifier0_3500 = nn.Linear(2048, ncs[0]+source_classes, bias=False).cuda()
+            model_1_ema.module.classifier0_3500 = nn.Linear(2048, ncs[0]+source_classes, bias=False).cuda()
+            if args.method=='uncertainty':
+                model_1.module.classifier3_0_3500 = nn.Linear(1024, ncs[0]+source_classes, bias=False).cuda()
+                model_1_ema.module.classifier3_0_3500 = nn.Linear(1024, ncs[0]+source_classes, bias=False).cuda()
             print(model_1.module.classifier0_3500)
             # if epoch !=0:
             #     model_1.module.classifier0_3500.weight.data.copy_(torch.from_numpy(normalize(target_centers,axis=1)).float().cuda())
