@@ -338,15 +338,13 @@ class DbscanBaseTrainer_unc_ema(object):
         if only_sour:
             variance = torch.sum(self.kl_distance(self.log_sm(ml_sour), self.sm(ml_sour_ema.detach())), dim=1)
         else:
-            variance = torch.sum(self.kl_distance(self.log_sm(torch.cat((pred1, ml_sour), 1)),
-                                                  self.sm(torch.cat((pred2_ema, ml_sour_ema), 1).detach())), dim=1)
+            variance = torch.sum(self.kl_distance(self.log_sm(pred1), self.sm(pred_ema.detach())), dim=1)
             # variance = (torch.sum(self.kl_distance(self.log_sm(ml_sour), self.sm(ml_sour_ema.detach())), dim=1) +
             #             torch.sum(self.kl_distance(self.log_sm(pred1), self.sm(pred_ema.detach())), dim=1)) / 2.0
         #     variance = torch.sum(self.kl_distance(self.log_sm(torch.cat((pred1,ml_sour),1)), self.sm(torch.cat((pred2,ml_sour_ema),1).detach())), dim=1)
 
         #     variance = ( torch.sum(self.kl_distance(self.log_sm(torch.cat((pred1,ml_sour),1)), self.sm(torch.cat((pred2,ml_sour_ema),1).detach())), dim=1)
         #              +torch.sum(self.kl_distance(self.log_sm(f_out_t1),self.sm(f_out_t1_ema.detach())), dim=1) )/2.0
-
 
         # variance = torch.sum(self.kl_distance(self.log_sm(ml_sour),self.sm(ml_sour_ema.detach())), dim=1)#only_sour
 

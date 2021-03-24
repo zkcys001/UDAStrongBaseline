@@ -129,7 +129,6 @@ def evaluate_all(query_features, gallery_features, distmat, query=None, gallery=
     print('Mean AP: {:4.1%}'.format(mAP))
 
 
-
     cmc_configs = {
         'market1501': dict(separate_camera_set=False,
                            single_gallery_shot=False,
@@ -156,7 +155,7 @@ class Evaluator(object):
 
     def evaluate(self, data_loader, query, gallery, metric=None, cmc_flag=False, rerank=False, pre_features=None):
         if (pre_features is None):
-            features, _,_ = extract_features(self.model, data_loader)
+            features, _ = extract_features(self.model, data_loader)
         else:
             features = pre_features
         distmat, query_features, gallery_features = pairwise_distance(features, query, gallery, metric=metric)
