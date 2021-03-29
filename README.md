@@ -88,7 +88,7 @@ We utilize 4 GPUs for training. **Note that**
 
 To train the uncertainty model in the source domain, run this command:
 ```shell
-sh pretrain_uncertainty_duke.sh
+sh pretrain_uncertainty_dukemtmc.sh
 ```
 #### Stage II: End-to-end training with clustering
 
@@ -103,7 +103,7 @@ sh scripts/dbscan_uncertainty_duke2market.sh
 #### Stage I: Pretrain Model on Source Domain
 To train the GLT model in the source domain, run this command:
 ```shell
-sh scripts/pretrain_duke.sh
+sh scripts/pretrain_dukemtmc.sh
 ```
 
 #### Stage II: End-to-end training with clustering
