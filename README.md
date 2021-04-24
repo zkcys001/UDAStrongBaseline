@@ -88,7 +88,7 @@ We utilize 4 GPUs for training. **Note that**
 
 To train the uncertainty model in the source domain, run this command:
 ```shell
-sh pretrain_uncertainty_dukemtmc.sh
+sh scripts/pretrain_uncertainty_dukemtmc.sh
 ```
 #### Stage II: End-to-end training with clustering
 
