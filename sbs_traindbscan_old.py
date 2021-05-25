@@ -33,6 +33,10 @@ from UDAsbs.memorybank.NCEAverage import onlinememory
 from UDAsbs.utils.faiss_rerank import compute_jaccard_distance
 # import ipdb
 
+from UDAsbs.models.dsbn import convert_dsbn
+from torch.nn import Parameter
+
+import collections
 
 start_epoch = best_mAP = 0
 
@@ -100,10 +104,6 @@ def get_test_loader(dataset, height, width, batch_size, workers, testset=None):
 
     return test_loader
 
-from UDAsbs.models.dsbn import convert_dsbn
-from torch.nn import Parameter
-
-
 def copy_state_dict(state_dict, model, strip=None):
     tgt_state = model.state_dict()
     copied_names = set()
@@ -165,94 +165,6 @@ def main():
     main_worker(args)
 
 
-class Optimizer:
-    def __init__(self, target_label, m, dis_gt, t_loader,N, hc=3, ncl=None,  n_epochs=200,
-                 weight_decay=1e-5, ckpt_dir='/',fc_len=3500):
-        self.num_epochs = n_epochs
-        self.momentum = 0.9
-        self.weight_decay = weight_decay
-        self.checkpoint_dir = ckpt_dir
-        self.N=N
-        self.resume = True
-        self.checkpoint_dir = None
-        self.writer = None
-        # model stuff
-        self.hc = len(ncl)#10
-        self.K = ncl#3000
-        self.K_c =[fc_len for _ in range(len(ncl))]
-        self.model = m
-        self.dev = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.L = [torch.LongTensor(target_label[i]).to(self.dev) for i in range(len(self.K))]
-        self.nmodel_gpus = 4#len()
-        self.pseudo_loader = t_loader#torch.utils.data.DataLoader(t_loader,batch_size=256)
-        # can also be DataLoader with less aug.
-        self.train_loader = t_loader
-        self.lamb = 25#args.lamb # the parameter lambda in the SK algorithm
-        self.cpu=True
-        self.dis_gt=dis_gt
-        dtype_='f64'
-        if dtype_ == 'f32':
-            self.dtype = torch.float32 if not self.cpu else np.float32
-        else:
-            self.dtype = torch.float64 if not self.cpu else np.float64
-
-        self.outs = self.K
-        # activations of previous to last layer to be saved if using multiple heads.
-        self.presize =  2048#4096 #
-
-    def optimize_labels(self):
-        if self.cpu:
-            sk.cpu_sk(self)
-        else:
-            sk.gpu_sk(self)
-
-        # save Label-assignments: optional
-        # torch.save(self.L, os.path.join(self.checkpoint_dir, 'L', str(niter) + '_L.gz'))
-
-        # free memory
-        data = 0
-        self.PS = 0
-
-        return self.L
-
-import collections
-
-
-def func(x, a, b, c):
-    return a * np.exp(-b * x) + c
-
-def write_sta_im(train_loader):
-    label2num=collections.defaultdict(int)
-    save_label=[]
-    for x in train_loader:
-        label2num[x[1]]+=1
-        save_label.append(x[1])
-    labels=sorted(label2num.items(),key=lambda item:item[1])[::-1]
-    num = [j for i, j in labels]
-    distribution = np.array(num)/len(train_loader)
-
-    return num,save_label
-def print_cluster_acc(label_dict,target_label_tmp):
-    num_correct = 0
-    for pid in label_dict:
-        pid_index = np.asarray(label_dict[pid])
-        pred_label = np.argmax(np.bincount(target_label_tmp[pid_index]))
-        num_correct += (target_label_tmp[pid_index] == pred_label).astype(np.float32).sum()
-    cluster_accuracy = num_correct / len(target_label_tmp)
-    print(f'cluster accucary: {cluster_accuracy:.3f}')
-
-
-class uncer(object):
-    def __init__(self):
-        self.sm = torch.nn.Softmax(dim=1)
-        self.log_sm = torch.nn.LogSoftmax(dim=1)
-        # self.cross_batch=CrossBatchMemory()
-        self.kl_distance = nn.KLDivLoss(reduction='none')
-    def kl_cal(self,pred1,pred1_ema):
-        variance = torch.sum(self.kl_distance(self.log_sm(pred1),
-                                              self.sm(pred1_ema.detach())), dim=1)
-        exp_variance = torch.exp(-variance)
-        return exp_variance
 
 
 def main_worker(args):
@@ -280,14 +192,11 @@ def main_worker(args):
                                            args.num_instances, args.iters, dataset_source.train)
 
     source_classes = dataset_source.num_train_pids
-    distribution,_ = write_sta_im(dataset_source.train)
 
 
 
     fc_len = 3500
     model_1, _, model_1_ema, _ = create_model(args, [fc_len for _ in range(len(ncs))])
-    # print(model_1)
-
 
     epoch = 0
     target_features_dict, _ = extract_features(model_1_ema, tar_cluster_loader, print_freq=100)
@@ -358,13 +267,8 @@ def main_worker(args):
     contrast.index_memory = torch.cat((torch.arange(source_classes), -1*torch.ones(k_memory).long()), dim=0).cuda()
     contrast.memory = torch.cat((source_centers, torch.rand(k_memory, 2048)), dim=0).cuda()
 
-    tar_selflabel_loader = get_test_loader(dataset_target, args.height, args.width, args.batch_size, args.workers,
-                                         testset=new_dataset)
 
-    o = Optimizer(target_label, dis_gt=distribution, m=model_1, ncl=ncs,
-                  t_loader=tar_selflabel_loader, N=len(new_dataset), fc_len=fc_len)
 
-    uncertainty=collections.defaultdict(list)
     print("Training begining~~~~~~!!!!!!!!!")
     for epoch in range(len(clusters)):
 
@@ -392,12 +296,6 @@ def main_worker(args):
             target_label = [plabel]
             ncs = [len(set(plabel)) + 1]
 
-            tar_selflabel_loader = get_test_loader(dataset_target, args.height, args.width, args.batch_size, args.workers,
-                                                 testset=new_dataset)
-            o = Optimizer(target_label, dis_gt=distribution, m=model_1, ncl=ncs,
-                          t_loader=tar_selflabel_loader, N=len(new_dataset),fc_len=fc_len)
-
-
             contrast.index_memory = torch.cat((torch.arange(source_classes), -1 * torch.ones(k_memory).long()),
                                               dim=0).cuda()
 
@@ -411,8 +309,8 @@ def main_worker(args):
             #     model_1.module.classifier0_3500.weight.data.copy_(torch.from_numpy(normalize(target_centers,axis=1)).float().cuda())
             #     model_1_ema.module.classifier0_3500.weight.data.copy_(torch.from_numpy(normalize(target_centers,axis=1)).float().cuda())
 
-        target_label_o = o.L
-        target_label = [list(np.asarray(target_label_o[0].data.cpu())+source_classes)]
+        target_label_o = target_label
+        target_label = [list(np.asarray(target_label_o[0])+source_classes)]
         contrast.index2label = [[i for i in range(source_classes)] + target_label[0]]
 
         # change pseudo labels
@@ -453,6 +351,7 @@ def main_worker(args):
 
         trainer.train(epoch, train_loader_target, train_loader_source, optimizer, args.choice_c,
                                     print_freq=args.print_freq, train_iters=iters_)
+
 
         def save_model(model_ema, is_best, best_mAP, mid):
             save_checkpoint({
