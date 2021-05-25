@@ -82,51 +82,54 @@ ImageNet-pretrained models for **ResNet-50** will be automatically downloaded in
 
 We utilize 4 GPUs for training. **Note that**
 
-### 1. Uncertainty:
+
+### 1. Stronger Baseline:
 
 #### Stage I: Pretrain Model on Source Domain
-
-To train the uncertainty model in the source domain, run this command:
-```shell
-sh scripts/pretrain_uncertainty_dukemtmc.sh
-```
-#### Stage II: End-to-end training with clustering
-
-Utilizeing the GLT model based on DBSCAN clustering algorithm:
-```shell
-sh scripts/dbscan_uncertainty_duke2market.sh
-```
-
-
-### 2. GLT (group-aware label transfer, CVPR 2021):
-
-#### Stage I: Pretrain Model on Source Domain
-To train the GLT model in the source domain, run this command:
-```shell
-sh scripts/pretrain_dukemtmc.sh
-```
-
-#### Stage II: End-to-end training with clustering
-Utilizeing the GLT model based on K-means clustering algorithm:
-```shell
-sh scripts/GLT_kmeans_duke2market.sh
-```
-
-### 3. Stronger Baseline:
-
-#### Stage I: Pretrain Model on Source Domain
-To train the baseline in the source domain, run this command:
+Training the baseline in the source domain, run this command:
 ```shell
 sh scripts/pretrain_market1501.sh
 ```
 
 #### Stage II: End-to-end training with clustering
 
-Utilizeing the baseline or uncertainty model(s) based on DBSCAN clustering algorithm:
+Utilizing the baseline or uncertainty model(s) based on DBSCAN clustering algorithm:
 
 ```shell
 sh scripts/dbscan_baseline_market2duke.sh
+
 ```
+
+### 2. Uncertainty(AAAI 2021):
+
+#### Stage I: Pretrain Model on Source Domain
+
+Training the uncertainty model in the source domain, run this command:
+```shell
+sh scripts/pretrain_uncertainty_dukemtmc.sh
+```
+#### Stage II: End-to-end training with clustering
+
+Utilizing the GLT model based on DBSCAN clustering algorithm:
+```shell
+sh scripts/dbscan_uncertainty_duke2market.sh
+```
+
+
+### 3. GLT (group-aware label transfer, CVPR 2021):
+
+#### Stage I: Pretrain Model on Source Domain
+Training the GLT model in the source domain, run this command:
+```shell
+sh scripts/pretrain_dukemtmc.sh
+```
+
+#### Stage II: End-to-end training with clustering
+Utilizing the GLT model based on K-means clustering algorithm:
+```shell
+sh scripts/GLT_kmeans_duke2market.sh
+```
+
 
 
 
