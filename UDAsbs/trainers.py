@@ -254,14 +254,14 @@ class DbscanBaseTrainer_unc_ema(object):
             _, f_out_3_t1_ema = self.derange_spbn(f_out_3_ema)
 
 
-
             with torch.no_grad():
                 queue = self.contrast.memory[:self.contrast.sour_numclass, :].clone()
                 ml_sour = torch.matmul(f_out_t1, queue.transpose(1, 0).detach())
                 ml_sour_ema = torch.matmul(f_out_t1_ema, queue.transpose(1, 0).detach())
 
             ########## [memory center]-level uncertainty
-            loss_ce_1, loss_reg, exp_variance = self.update_variance(items[2], p_out_t1, p_out_3_t1, p_out_t1_ema, p_out_3_t1_ema, ml_sour,ml_sour_ema,f_out_t1,f_out_t1_ema)
+            loss_ce_1, loss_reg, exp_variance = self.update_variance(items[2], p_out_t1, p_out_3_t1,
+                                                                     p_out_t1_ema, p_out_3_t1_ema, ml_sour, ml_sour_ema, f_out_t1, f_out_t1_ema)
 
             loss_ce_1 = loss_ce_1#(loss_ce_1+loss_ce_1_3)/2.0
 
@@ -332,32 +332,32 @@ class DbscanBaseTrainer_unc_ema(object):
         return uncertainty_d
     def update_variance(self, labels, pred1, pred2, pred_ema, pred2_ema, ml_sour, ml_sour_ema,f_out_t1,f_out_t1_ema):
                             #items[2], p_out_t1, p_out_3_t1, p_out_t1_ema, ml_sour,ml_sour_ema,f_out_t1,f_out_t1_ema)
-        loss = self.criterion_ce(pred1, labels)
+        loss_4layer = self.criterion_ce(pred1, labels)
         loss_3layer = self.criterion_ce(pred2, labels)
         only_sour=False
         if only_sour:
             variance = torch.sum(self.kl_distance(self.log_sm(ml_sour), self.sm(ml_sour_ema.detach())), dim=1)
         else:
-            variance = torch.sum(self.kl_distance(self.log_sm(pred1), self.sm(pred2_ema.detach())), dim=1)
+            # variance = torch.sum(self.kl_distance(self.log_sm(pred2), self.sm(pred_ema.detach())), dim=1)
+
             # variance = (torch.sum(self.kl_distance(self.log_sm(ml_sour), self.sm(ml_sour_ema.detach())), dim=1) +
-            #             torch.sum(self.kl_distance(self.log_sm(pred1), self.sm(pred_ema.detach())), dim=1)) / 2.0
-        #     variance = torch.sum(self.kl_distance(self.log_sm(torch.cat((pred1,ml_sour),1)), self.sm(torch.cat((pred2,ml_sour_ema),1).detach())), dim=1)
+            #             torch.sum(self.kl_distance(self.log_sm(pred1), self.sm(pred2_ema.detach())), dim=1)) / 2.0
 
-        #     variance = ( torch.sum(self.kl_distance(self.log_sm(torch.cat((pred1,ml_sour),1)), self.sm(torch.cat((pred2,ml_sour_ema),1).detach())), dim=1)
-        #              +torch.sum(self.kl_distance(self.log_sm(f_out_t1),self.sm(f_out_t1_ema.detach())), dim=1) )/2.0
+            variance = torch.sum(self.kl_distance(self.log_sm(torch.cat((pred2,ml_sour),1)), self.sm(torch.cat((pred_ema,ml_sour_ema),1).detach())), dim=1)
 
-        # variance = torch.sum(self.kl_distance(self.log_sm(ml_sour),self.sm(ml_sour_ema.detach())), dim=1)#only_sour
+            # variance = ( torch.sum(self.kl_distance(self.log_sm(torch.cat((pred1,ml_sour),1)), self.sm(torch.cat((pred2,ml_sour_ema),1).detach())), dim=1)
+            #          +torch.sum(self.kl_distance(self.log_sm(f_out_t1),self.sm(f_out_t1_ema.detach())), dim=1) )/2.0
 
-        # variance = (torch.sum(self.kl_distance(self.log_sm(torch.cat((pred1,ml_sour),1)), self.sm(torch.cat((pred2   ,ml_sour_ema),1).detach())), dim=1)+\
-        #             torch.sum(self.kl_distance(self.log_sm(torch.cat((pred1,ml_sour),1)), self.sm(torch.cat((pred_ema,ml_sour_ema),1).detach())), dim=1))/2.0
+            # variance = (torch.sum(self.kl_distance(self.log_sm(torch.cat((pred1,ml_sour),1)), self.sm(torch.cat((pred2   ,ml_sour_ema),1).detach())), dim=1)+\
+            #             torch.sum(self.kl_distance(self.log_sm(torch.cat((pred1,ml_sour),1)), self.sm(torch.cat((pred_ema,ml_sour_ema),1).detach())), dim=1))/2.0
 
-        # variance = (torch.sum(self.kl_distance(self.log_sm(pred1),self.sm(pred2.detach())), dim=1) + \
-        #             torch.sum(self.kl_distance(self.log_sm(pred1),self.sm(pred_ema.detach())), dim=1)) / 2.0
+            # variance = (torch.sum(self.kl_distance(self.log_sm(pred1),self.sm(pred2.detach())), dim=1) + \
+            #             torch.sum(self.kl_distance(self.log_sm(pred1),self.sm(pred_ema.detach())), dim=1)) / 2.0
 
         exp_variance = torch.exp(-variance)
 
-        loss = torch.mean(loss * exp_variance) + torch.mean(loss_3layer* exp_variance)
-        loss_reg=torch.mean(variance)
+        loss = torch.mean(loss_4layer * exp_variance) + torch.mean(loss_3layer* exp_variance)
+        loss_reg = torch.mean(variance)
         return loss,loss_reg,exp_variance
 
     def update_variance_self(self, labels, pred1, tri_t, tri_t_ema):
