@@ -93,7 +93,7 @@ sh scripts/pretrain_market1501.sh
 
 #### Stage II: End-to-end training with clustering
 
-Utilizing the baseline or uncertainty model(s) based on DBSCAN clustering algorithm:
+Utilizing the baseline based on DBSCAN clustering algorithm:
 
 ```shell
 sh scripts/dbscan_baseline_market2duke.sh
@@ -110,7 +110,7 @@ sh scripts/pretrain_uncertainty_dukemtmc.sh
 ```
 #### Stage II: End-to-end training with clustering
 
-Utilizing the GLT model based on DBSCAN clustering algorithm:
+Utilizing the uncertainty model based on DBSCAN clustering algorithm:
 ```shell
 sh scripts/dbscan_uncertainty_duke2market.sh
 ```
