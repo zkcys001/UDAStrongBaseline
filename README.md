@@ -143,17 +143,19 @@ and we will update our method .
 If you find this code useful for your research, please use the following BibTeX entry.
 
 ```BibTeX
-@article{zheng2020exploiting,
-  title={Exploiting Sample Uncertainty for Domain Adaptive Person Re-Identification},
-  author={Zheng, Kecheng and Lan, Cuiling and Zeng, Wenjun and Zhang, Zhizheng and Zha, Zheng-Jun},
-  journal={AAAI},
-  year={2021}
+@inproceedings{zheng2020exploiting,
+     title     =  {Exploiting Sample Uncertainty for Domain Adaptive Person Re-Identification},
+     author    =  {Zheng, Kecheng and Lan, Cuiling and Zeng, Wenjun and Zhang, Zhizheng and Zha, Zheng-Jun},
+     booktitle =  {Proceedings of the AAAI Conference on Artificial Intelligence},
+     year      =  {2021}
 }
 
-@article{zheng2021labeltransfer,
-  title={Group-aware Label Transfer for Domain Adaptive Person Re-identification},
-  author={Zheng, Kecheng and Liu, Wu and Mei, Tao and Luo, Jiebo and Zha, Zheng-Jun},
-  journal={CVPR},
-  year={2021}
+@InProceedings{Zheng_2021_CVPR,
+    author    =   {Zheng, Kecheng and Liu, Wu and He, Lingxiao and Mei, Tao and Luo, Jiebo and Zha, Zheng-Jun},
+    title     =   {Group-aware Label Transfer for Domain Adaptive Person Re-identification},
+    booktitle =   {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
+    month     =   {June},
+    year      =   {2021},
+    pages     =   {5310-5319}
 }
 ```
