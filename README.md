@@ -143,19 +143,21 @@ and we will update our method .
 If you find this code useful for your research, please use the following BibTeX entry.
 
 ```BibTeX
-@inproceedings{zheng2020exploiting,
-     title     =  {Exploiting Sample Uncertainty for Domain Adaptive Person Re-Identification},
-     author    =  {Zheng, Kecheng and Lan, Cuiling and Zeng, Wenjun and Zhang, Zhizheng and Zha, Zheng-Jun},
-     booktitle =  {Proceedings of the AAAI Conference on Artificial Intelligence},
-     year      =  {2021}
+@inproceedings{zheng2021exploiting,
+  title={Exploiting Sample Uncertainty for Domain Adaptive Person Re-Identification},
+  author={Zheng, Kecheng and Lan, Cuiling and Zeng, Wenjun and Zhang, Zhizheng and Zha, Zheng-Jun},
+  booktitle={Proceedings of the AAAI Conference on Artificial Intelligence},
+  volume={35},
+  number={4},
+  pages={3538--3546},
+  year={2021}
 }
 
-@InProceedings{Zheng_2021_CVPR,
-    author    =   {Zheng, Kecheng and Liu, Wu and He, Lingxiao and Mei, Tao and Luo, Jiebo and Zha, Zheng-Jun},
-    title     =   {Group-aware Label Transfer for Domain Adaptive Person Re-identification},
-    booktitle =   {Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition (CVPR)},
-    month     =   {June},
-    year      =   {2021},
-    pages     =   {5310-5319}
+@inproceedings{zheng2021group,
+  title={Group-aware label transfer for domain adaptive person re-identification},
+  author={Zheng, Kecheng and Liu, Wu and He, Lingxiao and Mei, Tao and Luo, Jiebo and Zha, Zheng-Jun},
+  booktitle={Proceedings of the IEEE/CVF Conference on Computer Vision and Pattern Recognition},
+  pages={5310--5319},
+  year={2021}
 }
 ```
